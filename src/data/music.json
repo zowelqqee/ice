@@ -1,0 +1,8 @@
+{
+  "_comment": "Tracks for Our Music. src without extension: the player loads .webm (Opus) or .m4a (AAC). Cut from the promo soundtracks by scripts/media/music.sh. Rights: open question (README).",
+  "tracks": [
+    { "id": "dracula", "show": "dracula", "title": "Eternal Night", "note": "Rock-opera theme, English vocals", "src": "/media/music/dracula", "duration": 84 },
+    { "id": "aladdin", "show": "aladdin", "title": "A Thousand and One Nights", "note": "Oriental rhythm, modern score", "src": "/media/music/aladdin", "duration": 85 },
+    { "id": "anastasia", "show": "anastasia", "title": "The Last Waltz", "note": "Orchestral, ballroom", "src": "/media/music/anastasia", "duration": 61.5 }
+  ]
+}

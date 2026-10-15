@@ -1,0 +1,18 @@
+{
+  "_comment": "Tour dates. ALL ENTRIES ARE PLACEHOLDERS until the real schedule arrives (placeholder: true shows a 'sample' badge and keeps them out of Event structured data). The Italian January 2027 dates come from a supplied print poster and still need confirmation. date: ISO yyyy-mm-dd, time local HH:mm, lat/lon for the map.",
+  "dates": [
+    { "id": "varese-2027-01-03", "show": "anastasia", "date": "2027-01-03", "time": "18:00", "city": "Varese", "country": "IT", "venue": "Venue to be confirmed", "lat": 45.8206, "lon": 8.8251, "tickets": null, "placeholder": true },
+    { "id": "milano-2027-01-04", "show": "anastasia", "date": "2027-01-04", "time": "20:30", "city": "Milan", "country": "IT", "venue": "Venue to be confirmed", "lat": 45.4642, "lon": 9.19, "tickets": null, "placeholder": true },
+    { "id": "milano-2027-01-05", "show": "anastasia", "date": "2027-01-05", "time": "20:30", "city": "Milan", "country": "IT", "venue": "Venue to be confirmed", "lat": 45.4642, "lon": 9.19, "tickets": null, "placeholder": true },
+    { "id": "bari-2027-01-06", "show": "anastasia", "date": "2027-01-06", "time": "18:00", "city": "Bari", "country": "IT", "venue": "Venue to be confirmed", "lat": 41.1171, "lon": 16.8719, "tickets": null, "placeholder": true },
+    { "id": "firenze-2027-01-07", "show": "anastasia", "date": "2027-01-07", "time": "20:30", "city": "Florence", "country": "IT", "venue": "Venue to be confirmed", "lat": 43.7696, "lon": 11.2558, "tickets": null, "placeholder": true },
+    { "id": "wien-2027-01-15", "show": "dracula", "date": "2027-01-15", "time": "19:30", "city": "Vienna", "country": "AT", "venue": "Sample arena", "lat": 48.2082, "lon": 16.3738, "tickets": null, "placeholder": true },
+    { "id": "praha-2027-01-22", "show": "aladdin", "date": "2027-01-22", "time": "17:00", "city": "Prague", "country": "CZ", "venue": "Sample arena", "lat": 50.0755, "lon": 14.4378, "tickets": null, "placeholder": true },
+    { "id": "berlin-2027-01-29", "show": "dracula", "date": "2027-01-29", "time": "20:00", "city": "Berlin", "country": "DE", "venue": "Sample arena", "lat": 52.52, "lon": 13.405, "tickets": null, "placeholder": true },
+    { "id": "amsterdam-2027-02-05", "show": "alice", "date": "2027-02-05", "time": "14:00", "city": "Amsterdam", "country": "NL", "venue": "Sample arena", "lat": 52.3676, "lon": 4.9041, "tickets": null, "placeholder": true },
+    { "id": "paris-2027-02-12", "show": "aladdin", "date": "2027-02-12", "time": "20:00", "city": "Paris", "country": "FR", "venue": "Sample arena", "lat": 48.8566, "lon": 2.3522, "tickets": null, "placeholder": true },
+    { "id": "barcelona-2027-02-20", "show": "alice", "date": "2027-02-20", "time": "18:00", "city": "Barcelona", "country": "ES", "venue": "Sample arena", "lat": 41.3874, "lon": 2.1686, "tickets": null, "placeholder": true },
+    { "id": "lisboa-2027-02-27", "show": "dracula", "date": "2027-02-27", "time": "21:00", "city": "Lisbon", "country": "PT", "venue": "Sample arena", "lat": 38.7223, "lon": -9.1393, "tickets": null, "placeholder": true },
+    { "id": "dubai-2027-03-12", "show": "aladdin", "date": "2027-03-12", "time": "19:00", "city": "Dubai", "country": "AE", "venue": "Sample arena", "lat": 25.2048, "lon": 55.2708, "tickets": null, "placeholder": true }
+  ]
+}

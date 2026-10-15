@@ -1,0 +1,141 @@
+{
+  "_comment": "Repertoire. Order = order on the site. status: touring | coming | tba. Copy marked copyStatus=draft needs client approval. Media paths are produced by scripts/media/shows.sh.",
+  "shows": [
+    {
+      "slug": "aladdin",
+      "status": "touring",
+      "title": "Aladdin",
+      "subtitle": "and the Tales of 1001 Nights",
+      "logline": "A lamp, a wish, a cave of gold, and a storyteller who never runs out of nights.",
+      "synopsis": [
+        "Scheherazade spins one tale into the next: Aladdin and the lamp that grants any wish, Ali Baba at the mouth of the treasure cave, Sinbad facing the storm.",
+        "Oriental rhythm meets modern score. Skaters, aerialists on silk high above the rink, fire jugglers and acrobats turn the ice into a desert, a palace and an open sea."
+      ],
+      "highlights": ["Aerial silks over the ice", "Fire juggling", "Ice acrobatics", "Hoops and illusion"],
+      "facts": { "duration": "1 h 30 min", "age": "6+" },
+      "accent": "#2EE6C5",
+      "media": {
+        "card": { "video": "/media/shows/aladdin/card", "poster": "/media/shows/aladdin/card" },
+        "hero": { "video": "/media/shows/aladdin/hero", "poster": "/media/shows/aladdin/hero" }
+      },
+      "track": "aladdin",
+      "copyStatus": "draft"
+    },
+    {
+      "slug": "dracula",
+      "status": "touring",
+      "title": "Dracula",
+      "subtitle": "The Story of Eternal Love",
+      "logline": "Some loves outlive the night. Some outlive everything.",
+      "synopsis": [
+        "A gothic city under red lanterns, a castle above the clouds, a love that refuses to die. The legend of Count Dracula told as a dark romance on ice.",
+        "An original rock-opera score, aerial work on blood-red silk, fire and fog: the darkest and most cinematic show in the repertoire."
+      ],
+      "highlights": ["Original rock-opera score", "Aerial silk", "Fire and fog", "Gothic projection design"],
+      "facts": { "duration": "TBC", "age": "TBC" },
+      "accent": "#FF2E4D",
+      "media": {
+        "card": { "video": "/media/shows/dracula/card", "poster": "/media/shows/dracula/card" },
+        "hero": { "video": "/media/shows/dracula/hero", "poster": "/media/shows/dracula/hero" },
+        "extra": { "video": "/media/shows/dracula/silk", "poster": "/media/shows/dracula/silk" }
+      },
+      "track": "dracula",
+      "copyStatus": "draft"
+    },
+    {
+      "slug": "alice",
+      "status": "touring",
+      "title": "Alice",
+      "subtitle": "in Wonderland",
+      "logline": "Follow the rabbit. Mind the cards. Never trust the time.",
+      "synopsis": [
+        "A girl falls through the ice into a world where cards march, roses blush on command and every clock is late.",
+        "A wild tea party, a furious queen and a garden of glass, staged as a whirl of colour and speed."
+      ],
+      "highlights": ["The mad tea party", "Living cards", "The Queen's garden"],
+      "facts": { "duration": "TBC", "age": "TBC" },
+      "accent": "#8FB8FF",
+      "media": {
+        "card": { "poster": "/media/shows/alice/card" }
+      },
+      "track": null,
+      "copyStatus": "draft"
+    },
+    {
+      "slug": "anastasia",
+      "status": "touring",
+      "title": "Anastasia",
+      "subtitle": "The Secret Heir",
+      "logline": "A ballroom frozen in time. A girl who has to remember who she is.",
+      "synopsis": [
+        "Years after the last waltz in the palace, a young woman with no past hears a melody she somehow knows.",
+        "A story of memory and courage that moves from candlelit ballrooms to the snow of a long journey home."
+      ],
+      "highlights": ["The ballroom waltz", "A journey through snow", "Live-feel orchestral score"],
+      "facts": { "duration": "TBC", "age": "TBC" },
+      "accent": "#F2D7A6",
+      "media": {
+        "card": { "video": "/media/shows/anastasia/card", "poster": "/media/shows/anastasia/card" },
+        "hero": { "video": "/media/shows/anastasia/hero", "poster": "/media/shows/anastasia/hero" }
+      },
+      "track": "anastasia",
+      "copyStatus": "draft"
+    },
+    {
+      "slug": "the-little-prince",
+      "status": "coming",
+      "title": "The Little Prince",
+      "subtitle": "A new production",
+      "logline": "One rose, one fox, a thousand stars.",
+      "synopsis": ["A new production in preparation."],
+      "highlights": [],
+      "facts": {},
+      "accent": "#FFC94D",
+      "media": {},
+      "track": null,
+      "copyStatus": "draft"
+    },
+    {
+      "slug": "through-the-looking-glass",
+      "status": "coming",
+      "title": "Alice",
+      "subtitle": "Through the Looking-Glass",
+      "logline": "Step through the mirror. Everything is the other way round.",
+      "synopsis": ["A new production in preparation."],
+      "highlights": [],
+      "facts": {},
+      "accent": "#C9D6FF",
+      "media": {},
+      "track": null,
+      "copyStatus": "draft"
+    },
+    {
+      "slug": "show-seven",
+      "status": "tba",
+      "title": "To be announced",
+      "subtitle": "Production VII",
+      "logline": "The next story is already on the ice.",
+      "synopsis": [],
+      "highlights": [],
+      "facts": {},
+      "accent": "#7DA2FF",
+      "media": {},
+      "track": null,
+      "copyStatus": "placeholder"
+    },
+    {
+      "slug": "show-eight",
+      "status": "tba",
+      "title": "To be announced",
+      "subtitle": "Production VIII",
+      "logline": "Some stories wait for the right winter.",
+      "synopsis": [],
+      "highlights": [],
+      "facts": {},
+      "accent": "#A8B8CC",
+      "media": {},
+      "track": null,
+      "copyStatus": "placeholder"
+    }
+  ]
+}

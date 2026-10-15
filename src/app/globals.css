@@ -1,26 +1,170 @@
 @import "tailwindcss";
 
+/* Design tokens. The site is dark by nature (a rink at night); there is no light theme. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #04060b;        /* page: near-black blue */
+  --abyss: #070c16;      /* raised surfaces */
+  --deep: #0c1626;       /* lines, wells */
+  --ice: #eaf6ff;        /* ice white: primary text */
+  --frost: #93a6bb;      /* secondary text */
+  --mist: #7d8fa5;       /* tertiary text (AA on ink) */
+  --rule: #22324a;       /* hairlines */
+  --accent: #5cf2ff;     /* electric ice cyan (DECISIONS D1) */
+  --accent-deep: #1aa6c4;
+
+  --ease-blade: cubic-bezier(0.77, 0, 0.18, 1);
+  --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --gutter: clamp(16px, 4vw, 56px);
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: var(--ink);
+  --color-abyss: var(--abyss);
+  --color-deep: var(--deep);
+  --color-ice: var(--ice);
+  --color-frost: var(--frost);
+  --color-mist: var(--mist);
+  --color-accent: var(--accent);
+  --font-display: var(--font-display), "Times New Roman", serif;
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ink);
+  color: var(--ice);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 1.5px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 0.86;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--frost);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@keyframes eq {
+  from { transform: scaleY(0.35); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes blade {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(400%); }
+}
+
+@keyframes shard {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  60% { opacity: 0.9; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.85); opacity: 0; }
+}
+
+@keyframes drift {
+  from { transform: scale(1.06) translate3d(-1.5%, 0, 0); }
+  to { transform: scale(1.12) translate3d(1.5%, -2%, 0); }
+}
+
+/* scrubber: a hairline of ice with a blade-thin thumb */
+.ice-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(to right, var(--ice) var(--p, 0%), var(--deep) var(--p, 0%));
+  outline-offset: 8px;
+  cursor: pointer;
+}
+.ice-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 2px;
+  height: 14px;
+  background: var(--accent);
+  box-shadow: 0 0 10px 2px rgba(92, 242, 255, 0.7);
+}
+.ice-range::-moz-range-thumb {
+  width: 2px;
+  height: 14px;
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+}
+
+/* poster capture (?still): only the 3D scene is visible */
+html[data-still] header,
+html[data-still] [data-hero-ui],
+html[data-still] nextjs-portal,
+html[data-still] [role="dialog"] {
+  display: none !important;
+}
+
+/* hero text waits behind the Enter screen, then rises in */
+h1[data-hero-ui],
+div[data-hero-ui] {
+  transition: opacity 1.1s var(--ease-glide) 0.35s, transform 1.1s var(--ease-glide) 0.35s;
+}
+html[data-gate="open"] h1[data-hero-ui],
+html[data-gate="open"] div[data-hero-ui] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: none;
 }
