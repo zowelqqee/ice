@@ -42,3 +42,6 @@ next-env.d.ts
 # local tooling: audit contact sheets, editor/agent config
 .audit/
 .claude/
+
+# python bytecode (Blender build scripts)
+__pycache__/

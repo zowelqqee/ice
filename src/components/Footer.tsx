@@ -75,17 +75,6 @@ export function Footer({ t }: { t: Dictionary["footer"] }) {
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-mist">
             © {year} Musical on Ice. {t.rights}
           </p>
-          {/* required by the model's CC BY 4.0 licence */}
-          <p className="text-[11px] text-mist">
-            3D dancer:{" "}
-            <a href="https://sketchfab.com/3d-models/ballerina-0a219f9c7dad439ca804d925e66dedbb" target="_blank" rel="noopener noreferrer" className="underline-offset-4 hover:text-ice hover:underline">
-              &ldquo;Ballerina&rdquo; by LollyPoly
-            </a>
-            ,{" "}
-            <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline-offset-4 hover:text-ice hover:underline">
-              CC BY 4.0
-            </a>
-          </p>
         </div>
       </div>
     </footer>

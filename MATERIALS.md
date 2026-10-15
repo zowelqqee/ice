@@ -76,5 +76,5 @@ the Dracula folder). The pipeline references one canonical source per asset.
 
 | Asset | Source | License | Use |
 |---|---|---|---|
-| Hero dancer | "Ballerina" by LollyPoly, sketchfab.com/3d-models/ballerina-0a219f9c7dad439ca804d925e66dedbb | CC BY 4.0 (credit in the footer) | Music-box base removed, transforms baked, smoothed, meshopt-compressed: `public/models/skater.glb` (0.4 MB) |
+| Hero skater | Built by script (`scripts/skater/`): body, eyes and skin from MakeHuman assets via MPFB 2.0.18; costume, skates, hair, crystals our own | CC0 (MakeHuman assets); ours | Posed, trimmed, meshopt and WebP: `public/models/skater.glb` (1.9 MB). Shown as a glass figure. No credit needed |
 | Orchestra samples | VS Chamber Orchestra 2 CE (Versilian Studios), github.com/sgossner/VSCO-2-CE | CC0 | 90 notes across 8 instruments, pitch-verified, trimmed, normalised: `public/media/orchestra/` |

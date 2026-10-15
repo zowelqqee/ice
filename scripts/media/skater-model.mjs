@@ -1,22 +1,22 @@
 #!/usr/bin/env node
-// Hero dancer model: "Ballerina" by LollyPoly (sketchfab.com, CC BY 4.0).
-// Step 1 (Blender, headless): scripts/media/skater-prep.py removes the music-box base, bakes the
-//   transforms, drops the stray UV sets, welds and smooth-shades with a 40° crease angle.
-// Step 2 (this script): pruned, deduplicated, meshopt-compressed geometry (decoded locally, no CDN),
-//   neutral names, no extras, and an asset block carrying only the required CC BY credit.
+// Hero skater model (built by scripts/skater/: MakeHuman CC0 body, our costume, skates and hair).
+// Step 1 (Blender, headless): scripts/skater/build.sh, then scripts/skater/run.sh export_web.py
+//   writes the posed, trimmed model with neutral part names (skater_web_raw.glb).
+// Step 2 (this script): pruned, deduplicated, WebP textures, meshopt-compressed geometry (decoded
+//   locally, no CDN), no extras, and a minimal asset block.
 //
-//   usage: node scripts/media/skater-model.mjs <figure.glb from step 1>
+//   usage: node scripts/media/skater-model.mjs [~/ice/skater-build/out/skater_web_raw.glb]
 
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { dedup, prune, resample, textureCompress, meshopt, weld } from "@gltf-transform/functions";
+import { dedup, prune, textureCompress, meshopt } from "@gltf-transform/functions";
 import { MeshoptEncoder } from "meshoptimizer";
 import sharp from "sharp";
 import { mkdirSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-const src = process.argv[2];
-if (!src) throw new Error("usage: skater-model.mjs <scene.gltf>");
+const src = process.argv[2] ?? join(homedir(), "ice/skater-build/out/skater_web_raw.glb");
 const ROOT = new URL("../..", import.meta.url).pathname;
 const OUT = join(ROOT, "public/models/skater.glb");
 mkdirSync(dirname(OUT), { recursive: true });
@@ -26,32 +26,23 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
 const doc = await io.read(src);
 const root = doc.getRoot();
 
-// report what came in (bones, meshes, textures) so posing code can be matched to the rig
-const skins = root.listSkins();
-console.log("meshes", root.listMeshes().length, "skins", skins.length, "joints", skins[0]?.listJoints().length ?? 0, "textures", root.listTextures().length, "animations", root.listAnimations().length);
-console.log("joints:", (skins[0]?.listJoints() ?? []).map((j) => j.getName()).join(" "));
-
-// neutral names and no extras anywhere
+// names are the part names the site picks materials by; anything else (or non-ASCII) is neutralised
 let i = 0;
-for (const prop of [...root.listNodes(), ...root.listMeshes(), ...root.listMaterials(), ...root.listTextures(), ...root.listAnimations(), ...root.listScenes()]) {
+for (const prop of [...root.listNodes(), ...root.listMeshes(), ...root.listMaterials(), ...root.listTextures(), ...root.listScenes()]) {
   prop.setExtras({});
-  const n = prop.getName();
-  // keep bone names (needed for posing) when they are plain ASCII; rename everything else
-  const isJoint = skins.some((s) => s.listJoints().includes(prop));
-  if (!isJoint || /[^\x20-\x7E]/.test(n)) prop.setName(isJoint ? `joint_${i++}` : `${prop.propertyType.toLowerCase()}_${i++}`);
+  if (!/^[a-z][a-z0-9_]*$/.test(prop.getName())) prop.setName(`${prop.propertyType.toLowerCase()}_${i++}`);
 }
 for (const t of root.listTextures()) t.setURI("");
 root.getAsset().generator = "musical-on-ice";
-root.getAsset().copyright = '"Ballerina" by LollyPoly, CC BY 4.0 (sketchfab.com)';
+root.getAsset().copyright = "Figure from MakeHuman assets (CC0); costume, skates and hair: Musical on Ice";
 delete root.getAsset().extras;
 
+console.log("meshes", root.listMeshes().length, "materials", root.listMaterials().map((m) => m.getName()).join(" "));
 await doc.transform(
-  prune(),
+  prune({ keepLeaves: true }), // keep the anchor empties (spin pivot, trail points)
   dedup(),
-  weld(),
-  resample(),
-  textureCompress({ encoder: sharp, targetFormat: "webp", resize: [2048, 2048], quality: 88 }),
+  textureCompress({ encoder: sharp, targetFormat: "webp", resize: [2048, 2048], quality: 86 }),
   meshopt({ encoder: MeshoptEncoder, level: "medium" }),
 );
 await io.write(OUT, doc);
-console.log(`→ ${OUT} (${(statSync(OUT).size / 1e6).toFixed(1)} MB)`);
+console.log(`→ ${OUT} (${(statSync(OUT).size / 1e6).toFixed(2)} MB)`);

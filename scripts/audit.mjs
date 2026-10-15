@@ -38,7 +38,6 @@ const ALLOWED_URL = [
   /^https:\/\/www\.youtube\.com\/@MUSICALONICE-f3b/,
   /^https:\/\/instagram\.com\/musicalonice/,
   /^https:\/\/schema\.org/,
-  /^https:\/\/sketchfab\.com\/3d-models\/ballerina-0a219f9c7dad439ca804d925e66dedbb/, // CC BY credit for the hero model
   /^https:\/\/creativecommons\.org\/licenses\/by\/4\.0/,
   /^https?:\/\/[a-z0-9.-]*musicalonice\.example/,
   /^https:\/\/nextjs\.org\/docs/,

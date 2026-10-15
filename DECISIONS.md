@@ -12,7 +12,19 @@ gradient the brief bans, and it collides with Dracula's blood red.
 
 ## D2. Hero pirouette: a sculpted dancer model in contre-jour + real arena footage behind
 
-**Update (client choice):** the dancer is now "Ballerina" by LollyPoly (sketchfab.com, CC BY 4.0, credited in the footer): a sculpted ballerina en pointe in a high arabesque with a pleated tutu. She spins on her pointe; the site's contre-jour shading is injected into her material (rim light only, no front light above the waist, so the face stays a silhouette). The model is not rigged, so the arms do not pull in with speed; scroll and drag still drive the spin, spray and light trails. Pipeline: `scripts/media/skater-prep.py` (Blender) + `scripts/media/skater-model.mjs`. The raymarched figure described below remains as the automatic fallback if the model file is missing.
+**Update 2 (client choice, 2026-10-16):** the dancer is our own figure skater, built from the client's costume sketch. The pose: on the left skate, right leg in passé, arms rounded overhead. The costume: velvet bodice, sheer sleeves, three-layer chiffon skirt, crystals, laced skates and a bun with loose strands.
+
+- **Construction.** Everything is built by script in Blender (`scripts/skater/`, see its README) on a MakeHuman CC0 body, so no credit is needed. The earlier "Ballerina" by LollyPoly (CC BY) and its footer credit are gone.
+- **Look.** In the hero she is shown as a glass figure, by the client's choice: the model gives the form, with no colours.
+  - Clear through the middle, bright at the edges, with reflections and glints from the stage lights, the site's cyan rim and a faint thin-film shimmer.
+  - Hair as spun-glass strands; crystals as sparkle points.
+  - The body glass writes depth like cast glass, so the bun and the far arm do not show through the face and torso; its inner surfaces are drawn first.
+- **Motion.** She spins on her blade (the spin axis and the trail points are anchors in the model).
+- **Pipeline.** `scripts/skater/build.sh` → `export_web.py` → `scripts/media/skater-model.mjs`.
+
+The raymarched figure described below remains the automatic fallback if the model file is missing.
+
+**Update 1 (superseded):** "Ballerina" by LollyPoly (CC BY 4.0) in contre-jour.
 
 ### Original rationale
 There is no usable pirouette shot. The only spins (Aladdin ≈50–52 s, Dracula arena ≈13–15 s)

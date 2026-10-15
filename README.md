@@ -3,7 +3,7 @@
 A showcase for the touring ice-musical repertoire, built with Next.js (App Router), TypeScript,
 Three.js / React Three Fiber, GSAP + ScrollTrigger, Lenis and the Web Audio API.
 
-- **Hero**: a sculpted ballerina ("Ballerina" by LollyPoly, CC BY 4.0) lit from behind, spinning on her pointe over real arena footage. Scroll scrubs the spin, drag or swipe spins her, and she turns slowly at rest. The first paint is a frame rendered from the scene itself, so she is the first thing on screen.
+- **Hero**: a glass figure skater, our own model built from the costume sketch, spinning on her blade in the stage light over real arena footage. Scroll scrubs the spin, drag or swipe spins her, and she turns slowly at rest. The first paint is a frame rendered from the scene itself, so she is the first thing on screen.
 - **Shows**: a pinned horizontal journey through all eight productions, each with its own accent light. Every show has its own page, reached through a blade-cut transition.
 - **Tour**: route map, schedule, filters, ice-break ticket buttons, and schema.org events for confirmed dates.
 - **Our music**: a player for the show soundtracks, plus the ice orchestra: eight detailed ice instruments (violin, cello, harp, grand piano, flute, horn, timpani, glockenspiel) each playing its own part of an original theme with real CC0 recordings. Keys press, bars light and strings vibrate with each note.
@@ -80,8 +80,8 @@ The ice orchestra does not use these tracks: it plays an original theme with CC0
 
 ### Replace the hero dancer
 
-1. Export the model as GLB. Run `scripts/media/skater-prep.py` in Blender (headless) to drop any base, bake transforms and smooth, then `node scripts/media/skater-model.mjs <figure.glb>` → `public/models/skater.glb`.
-2. Adjust `HEIGHT` and `MODEL_YAW` in `src/components/hero/SkaterModel.tsx`, and update the credit in the footer if the licence asks for one.
+1. The model is built by script (see `scripts/skater/README.md`). Run `scripts/skater/build.sh`, then `scripts/skater/run.sh export_web.py`, then `node scripts/media/skater-model.mjs` → `public/models/skater.glb`. The site picks materials by part name and reads the anchor empties (spin pivot, free blade, fingertips).
+2. `MODEL_YAW` in `src/components/hero/SkaterModel.tsx` turns her start pose. A model under a licence that asks for credit needs a line in the footer (the current one is CC0 plus our own work).
 3. Re-render the instant first frame: capture `/?still` (landscape 1920x1080 @1.5x, portrait 390x844 @3x) and run `scripts/media/hero-poster.sh`.
 
 ### Text and languages
@@ -149,6 +149,6 @@ Real-device testing on mid-range phones is still to do.
 5. **Tour.** We need the real schedule, venues and ticket links. The Italian January 2027 dates come from a print poster and need confirmation.
 6. **Contacts and domain.** We need the booking and press addresses, and the production domain.
 7. **Logo.** Is there a clean SVG? The EPS couldn't be rasterised here, so the PNG is used.
-8. **Hero dancer.** She is a ballerina model en pointe (not rigged, no skates). A rigged figure-skater model (e.g. "Figure Skater" by qixi, TurboSquid, $79) would let her arms pull in as she speeds up; a locked-off spin filmed against a dark rink would allow a real skater.
+8. **Hero skater.** She is our own glass figure, in the pose from the costume sketch. The build keeps a full rig, so a second pose (arms pulling in as she speeds up) is a script change, not a new model.
 9. **Translations** for DE, FR, ES and IT.
 10. **Hosting.** Any platform that runs Next.js works. The site makes no third-party requests.
