@@ -76,7 +76,7 @@ Only entries with `placeholder: false` are published as schema.org `TheaterEvent
 1. Add a `track` line to `scripts/media/music.sh` and run it. It writes `public/media/music/<id>.{webm,m4a}`, loudness-normalised and metadata-free.
 2. Add the track to `src/data/music.json`, and set `track` on the show in `shows.json` to give its page a Listen button.
 
-Dedicated stems (separate violin, piano, cello and harp recordings) would make the orchestra exact. Today each instrument is a frequency band of the full mix (see DECISIONS D8).
+The ice orchestra does not use these tracks: it plays an original theme with CC0 instrument recordings (VSCO 2 CE, see DECISIONS D12). To rebuild its samples run `node scripts/media/orchestra.mjs`; file names carry content hashes, so browsers pick up new samples at once.
 
 ### Replace the hero dancer
 
@@ -104,7 +104,7 @@ src/components/tour/        server section (map projection, JSON-LD) + client vi
 src/components/music/       player UI, ice orchestra (procedural instruments, ice/crack material)
 src/components/shell/       transitions (blade cut), frost cursor, providers
 src/components/ui/          IceButton (cracks on hover, shatters on press)
-src/lib/audio/              engine.ts (single Web Audio graph), music.ts (player + band layers)
+src/lib/audio/              engine.ts (single Web Audio graph), music.ts (show-track player), orchestra.ts (sampler + score)
 src/lib/                    spin state, quality tiers, data accessors, map projection
 src/data/                   shows.json, tour.json, music.json
 scripts/media/              hero.sh, shows.sh, music.sh: source → web assets, metadata stripped
