@@ -22,14 +22,14 @@ from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, os.path.dirname(__file__))
 import common as C  # noqa: E402
-from costume import bind, node_mat, rest_mesh, smoothstep  # noqa: E402
+from costume import bind, node_mat, rest_mesh  # noqa: E402
 
 V = Vector
 BOOT_TOP = 0.215  # rest height of the collar (m)
 LEATHER = 0.0055  # boot wall offset from the skin (foot); the shaft is snugger
 SOLE_T = 0.006  # sole under the ball
 HEEL_T = 0.026  # sole + heel block under the heel
-STACK = 0.05  # blade bottom to plate top
+STACK = 0.044  # blade bottom to plate top
 
 
 # ---------------------------------------------------------------- materials
@@ -119,33 +119,96 @@ def ring_shape(bm, center, normal, r_out, r_in, sides=10):
 
 
 # ---------------------------------------------------------------- boot
+WALL = 0.004  # leather and lining over the skin
+
+
+def hull_ring(pts2, offset, n=40, floor=None):
+    """Smooth closed outline around 2-D points: convex hull, offset outward, resampled by angle."""
+    from mathutils.geometry import convex_hull_2d, intersect_line_line_2d
+
+    if len(pts2) < 3:
+        return None
+    idx = convex_hull_2d(pts2)
+    poly = [V(pts2[i]) for i in idx]
+    c = sum(poly, V((0.0, 0.0))) / len(poly)
+    far = max((p - c).length for p in poly) * 3 + 0.01
+    ring = []
+    for k in range(n):
+        a = k / n * 2 * math.pi
+        d = V((math.cos(a), math.sin(a)))
+        r = 0.0
+        for i in range(len(poly)):
+            hit = intersect_line_line_2d(c, c + d * far, poly[i], poly[(i + 1) % len(poly)])
+            if hit is not None:
+                r = max(r, (hit - c).length)
+        q = c + d * (r + offset)
+        if floor is not None:
+            q.y = max(q.y, floor)
+        ring.append(q)
+    return ring
+
+
+def smooth_rings(rings, passes=6, around=2):
+    """Even out a stack of rings: average each ring with its neighbours along the stack, and each
+    point with its neighbours around the ring (keeps the ends and the shapes, removes the steps)."""
+    rings = [[p.copy() for p in r] for r in rings]
+    n = len(rings[0])
+    for _ in range(passes):
+        rings = [rings[0]] + [[(rings[i - 1][k] + rings[i][k] * 2 + rings[i + 1][k]) / 4 for k in range(n)]
+                              for i in range(1, len(rings) - 1)] + [rings[-1]]
+    for _ in range(around):
+        rings = [[(r[k - 1] + r[k] * 2 + r[(k + 1) % n]) / 4 for k in range(n)] for r in rings]
+    return rings
+
+
+def loft(bm, rings, cap=True):
+    """Closed surface through a stack of rings with equal point counts."""
+    vs = [[bm.verts.new(p) for p in r] for r in rings]
+    n = len(rings[0])
+    for a, b in zip(vs, vs[1:]):
+        for k in range(n):
+            bm.faces.new((a[k], a[(k + 1) % n], b[(k + 1) % n], b[k]))
+    if cap:
+        bm.faces.new(list(reversed(vs[0])))
+        bm.faces.new(vs[-1])
+
+
 def boot(bm_rest, body, side, mats):
-    """Boot shell: voxel remesh of (lower-leg skin + toe hull), offset by the leather, cut at the collar."""
+    """Boot shell, made like a shoe last: horizontal slices of the leg for the shaft and cross
+    slices along the foot, each a smooth convex outline plus the wall, joined by a voxel remesh.
+    No ankle bones or toes push through; the toe box is one rounded shape; the sole is flat."""
     sx = 1 if side == "l" else -1
-    bm = bm_rest.copy()
-    dl = bm.verts.layers.deform.active
+    dl = bm_rest.verts.layers.deform.active
     vg = body.vertex_groups
     leg = [vg[n].index for n in (f"foot_{side}", f"ball_{side}", f"calf_{side}")]
-    bm.faces.index_update()
-    ks = set()
-    for f in bm.faces:
-        if all(v.co.z < BOOT_TOP + 0.03 and v.co.x * sx > 0.02 and sum(v[dl].get(i, 0) for i in leg) > 0.5
-               for v in f.verts):
-            ks.add(f.index)
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in ks], context="FACES")
-    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
-    bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary], sides=0)
-    ys = [v.co.y for v in bm.verts if v.co.z < 0.03]
+    pts = [v.co.copy() for v in bm_rest.verts
+           if v.co.x * sx > 0.02 and v.co.z < BOOT_TOP + 0.05 and sum(v[dl].get(i, 0) for i in leg) > 0.5]
+    ys = [p.y for p in pts if p.z < 0.03]
     toe_y, heel_y = min(ys), max(ys)
     ball_y = toe_y + 0.3 * (heel_y - toe_y)
-    # toe box: convex hull of toes and forefoot, a little roomier than the toes
-    hull_in = [v.co.copy() for v in bm.verts if v.co.z < 0.075 and v.co.y < ball_y + 0.06]
-    base = len(bm.verts)
-    for p in hull_in:
-        bm.verts.new(p)
-    bm.verts.ensure_lookup_table()
-    bmesh.ops.convex_hull(bm, input=bm.verts[base:])
-    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm = bmesh.new()
+    # shaft: oval sections up the lower leg
+    rings = []
+    z = 0.06
+    while z < BOOT_TOP + 0.03:
+        r = hull_ring([(p.x, p.y) for p in pts if abs(p.z - z) < 0.008], WALL)
+        if r:
+            rings.append([V((q.x, q.y, z)) for q in r])
+        z += 0.006
+    loft(bm, smooth_rings(rings))
+    # foot: cross sections from the heel to the toe, flat underneath
+    rings = []
+    y = heel_y + 0.006
+    while y > toe_y - 0.004:
+        r = hull_ring([(p.x, p.z) for p in pts if abs(p.y - y) < 0.007 and p.z < 0.11], WALL, floor=-0.0005)
+        if r:
+            rings.append([V((q.x, y, q.y)) for q in r])
+        y -= 0.005
+    rings = smooth_rings(rings)
+    for r in rings:  # smoothing lifts the flat sole a little: put it back
+        for q in r:
+            q.z = max(q.z, -0.0005) if q.z > 0.004 else -0.0005
+    loft(bm, rings)
     me = bpy.data.meshes.new("tmp_last")
     bm.to_mesh(me)
     bm.free()
@@ -153,10 +216,10 @@ def boot(bm_rest, body, side, mats):
     bpy.context.scene.collection.objects.link(tmp)
     rm = tmp.modifiers.new("Remesh", "REMESH")
     rm.mode = "VOXEL"
-    rm.voxel_size = 0.002
-    sm = tmp.modifiers.new("Smooth", "SMOOTH")  # irons out the voxel staircase
-    sm.factor = 1.0
-    sm.iterations = 60
+    rm.voxel_size = 0.0018
+    sm = tmp.modifiers.new("Smooth", "SMOOTH")  # softens the slice steps and the shaft/foot join
+    sm.factor = 0.8
+    sm.iterations = 25
     dg = bpy.context.evaluated_depsgraph_get()
     last = bpy.data.meshes.new_from_object(tmp.evaluated_get(dg))
     bpy.data.objects.remove(tmp)
@@ -164,28 +227,6 @@ def boot(bm_rest, body, side, mats):
     bm = bmesh.new()
     bm.from_mesh(last)
     bpy.data.meshes.remove(last)
-    bm.normal_update()
-    for v in bm.verts:
-        v.co += v.normal * (LEATHER - 0.0015 * smoothstep(0.07, 0.13, v.co.z))
-    # relax the voxel surface (no lumps, round toe box), keeping the sole flat
-    for _ in range(12):
-        bmesh.ops.smooth_vert(bm, verts=[v for v in bm.verts if v.co.z > 0.006], factor=0.5,
-                              use_axis_x=True, use_axis_y=True, use_axis_z=True)
-    for _ in range(20):  # a rounder toe box
-        bmesh.ops.smooth_vert(bm, verts=[v for v in bm.verts if v.co.z > 0.006 and v.co.y < ball_y + 0.05],
-                              factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
-    for _ in range(30):  # a smooth shaft
-        bmesh.ops.smooth_vert(bm, verts=[v for v in bm.verts if v.co.z > 0.05], factor=0.6,
-                              use_axis_x=True, use_axis_y=True, use_axis_z=True)
-    bm.normal_update()
-    # smoothing shrinks a little: keep the shaft clear of the leg
-    skin = BVHTree.FromBMesh(bm_rest)
-    for v in bm.verts:
-        if v.co.z < 0.05 or v.co.z > BOOT_TOP + 0.02:
-            continue
-        loc, nrm, _, d = skin.find_nearest(v.co)
-        if loc is not None and ((v.co - loc).dot(nrm) < 0 or d < 0.0035):
-            v.co = loc + nrm * 0.0035
     bm.normal_update()
     # cut at the collar, front a little higher where the tongue sits
     mid_y = (heel_y + toe_y) * 0.5
@@ -456,32 +497,49 @@ def blade(front, rear, side, mats):
     up = w.cross(a).normalized()
     if up.z < 0:
         up = -up
-    # 2-D outline (s along the blade from the heel end, h up from the blade bottom)
+    # 2-D outline (s along the blade from the heel mount, h up from the blade bottom), like a real
+    # figure-skate blade: slim rockered runner, upturned toe with four picks, two slender stanchions
+    # with rounded windows under the toe and heel plates, a rounded tail
     R = 2.1
-    s0, s1 = -0.035, d + 0.075
-    sc = s0 + 0.58 * (s1 - s0)
     H = STACK
+    s0, s1 = -0.038, d + 0.072
+    sc = s0 + 0.56 * (s1 - s0)
+
     def rocker(s):
         return (s - sc) ** 2 / (2 * R)
-    out = []
-    # bottom edge, heel to toe
-    for i in range(41):
-        s = s0 + (s1 - 0.03 - s0) * i / 40
-        out.append((s, rocker(s)))
-    # toe curve with picks
-    rt = 0.022
+
+    def arc(c, r, a0, a1, n):
+        return [(c[0] + r * math.cos(a0 + (a1 - a0) * i / n), c[1] + r * math.sin(a0 + (a1 - a0) * i / n)) for i in range(n + 1)]
+
+    def ellipse(c, rx, ry, n=20):
+        return [(c[0] + rx * math.cos(i / n * 6.2832), c[1] + ry * math.sin(i / n * 6.2832)) for i in range(n)]
+
+    out = [(s0 + 0.002 + (s1 - 0.03 - s0) * i / 40, rocker(s0 + 0.002 + (s1 - 0.03 - s0) * i / 40)) for i in range(41)]
+    # upturned toe; picks as small teeth on its lower front
+    rt = 0.03
     tc = (s1 - 0.03, rocker(s1 - 0.03) + rt)
-    for i in range(1, 25):
-        t = i / 24
-        ang = -math.pi / 2 + t * math.pi * 0.9
-        r = rt + (0.0038 if (i % 5) in (2, 3) and t < 0.75 else 0.0)  # toe picks
-        out.append((tc[0] + math.cos(ang) * r, tc[1] + math.sin(ang) * r))
-    # top: front plate, front stanchion, bridge, rear stanchion, rear plate
-    out += [(d + 0.03, H), (d - 0.055, H), (d - 0.068, 0.022), (0.062, 0.021), (0.04, H), (-0.03, H), (s0, H - 0.014),
-            (s0 - 0.003, 0.011)]
+    toe = []
+    for i in range(1, 31):
+        t = i / 30
+        ang = -math.pi / 2 + t * math.pi * 0.78
+        bump = 0.0026 * max(0.0, math.sin(t * math.pi * 8)) if 0.08 < t < 0.55 else 0.0
+        toe.append((tc[0] + math.cos(ang) * (rt + bump), tc[1] + math.sin(ang) * (rt + bump)))
+    out += toe
+    # toe top back to the front plate, plate, front stanchion, bridge, rear stanchion, plate, tail
+    out += [(d + 0.036, H)]
+    # posts sized to the mounting span d (heel mount at 0, toe mount at d)
+    fb, rb = d - 0.03, 0.026  # back edge of the toe post, front edge of the heel post
+    out += [(d + 0.036 - (d + 0.036 - fb) * i / 6, H) for i in range(1, 7)]  # toe plate underside
+    out += [(fb - 0.012 * math.sin(i / 6 * math.pi / 2), H - (H - 0.015) * (i / 6) ** 1.4) for i in range(1, 7)]
+    out += [(fb - 0.012 - (fb - 0.012 - (rb + 0.012)) * i / 8, 0.015 - 0.002 * math.sin(i / 8 * math.pi)) for i in range(1, 8)]
+    out += [(rb + 0.012 - 0.012 * (i / 6) ** 0.7, 0.015 + (H - 0.015) * (i / 6) ** 1.4) for i in range(1, 7)]
+    out += [(rb - (rb + 0.03) * i / 5, H) for i in range(1, 6)]  # heel plate underside
+    out += arc((-0.03, H - 0.014), 0.014, math.pi / 2, math.pi * 1.05, 6)[1:]
+    out += [(s0, 0.01)]
+    mid = 0.5 * (H + 0.016)
     holes = [
-        [(d - 0.042, H - 0.008), (d + 0.01, H - 0.008), (d - 0.004, 0.024), (d - 0.04, 0.025)],
-        [(-0.012, H - 0.008), (0.026, H - 0.008), (0.036, 0.026), (0.0, 0.022)],
+        ellipse((d + 0.004, mid + 0.001), 0.017, 0.5 * (H - 0.016) - 0.006),
+        ellipse((-0.004, mid + 0.001), 0.012, 0.5 * (H - 0.016) - 0.006),
     ]
     cu = bpy.data.curves.new(f"blade_{side}", "CURVE")
     cu.dimensions = "2D"
@@ -510,7 +568,7 @@ def blade(front, rear, side, mats):
     bpy.context.scene.collection.objects.link(ob)
     # plates: thin rounded slabs on top of the stanchions
     bm = bmesh.new()
-    for s_a, s_b in ((d - 0.07, d + 0.04), (-0.035, 0.05)):
+    for s_a, s_b in ((d - 0.032, d + 0.038), (-0.032, 0.028)):  # plates only over the two posts
         L, Wd, T = s_b - s_a, 0.034, 0.003
         cen = base + a * ((s_a + s_b) / 2) + up * (H + T / 2)
         bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation(cen) @ M.to_4x4() @ Matrix.Diagonal((L, T, Wd, 1)))

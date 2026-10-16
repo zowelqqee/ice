@@ -139,6 +139,33 @@ skin_img = image_of(body)
 print("textures:", skin_img and skin_img.name, image_of(bpy.data.objects["skater.high-poly"]).name,
       image_of(bpy.data.objects["skater.mindfront_eyebrows_03"]), image_of(bpy.data.objects["skater.mindfront_eyelashes_02"]))
 me = evaluated_mesh(body)  # the mask modifier already drops the hidden skin
+# close the legs where the skin inside the boots was removed (seen through glass, an open cut
+# shows as a dark ring above the collar)
+bmb = bmesh.new()
+bmb.from_mesh(me)
+edges = [e for e in bmb.edges if e.is_boundary]
+seen, loops = set(), []
+for e in edges:
+    if e in seen:
+        continue
+    loop, stack = [], [e]
+    seen.add(e)
+    while stack:
+        x = stack.pop()
+        loop.append(x)
+        for v in x.verts:
+            for y in v.link_edges:
+                if y.is_boundary and y not in seen:
+                    seen.add(y)
+                    stack.append(y)
+    loops.append(loop)
+legs = [lp for lp in loops
+        if sum((e.verts[0].co + e.verts[1].co).z / 2 for e in lp) / len(lp) < 0.8 and sum(e.calc_length() for e in lp) < 0.45]
+for lp in legs:
+    bmesh.ops.holes_fill(bmb, edges=lp, sides=0)
+bmb.to_mesh(me)
+bmb.free()
+print("closed leg openings", len(legs))
 keep_uv_only_first(me)
 add("skin", me, material("skin", image=skin_img, rough=0.5))
 

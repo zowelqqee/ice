@@ -14,7 +14,7 @@ const HeroCanvas = dynamic(() => import("./HeroCanvas"), { ssr: false });
 
 const TURNS_PER_HERO = 4.5;
 // bump when the poster frames are re-rendered (they keep their names)
-const POSTER_V = "?v=4";
+const POSTER_V = "?v=5";
 
 function Letters({ text, className, line }: { text: string; className?: string; line: 1 | 2 }) {
   return (
