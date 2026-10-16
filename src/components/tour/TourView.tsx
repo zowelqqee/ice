@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { gsap } from "gsap";
 import type { MapStop } from "@/lib/map";
 import type { TourDate } from "@/lib/data";
+import { ticketState } from "@/lib/ticket";
 import { IceButton } from "../ui/IceButton";
 import { BladeLink } from "../shell/Transition";
 import type { Dictionary } from "@/i18n";
@@ -158,10 +159,12 @@ export function TourView({
         </div>
 
         <h3 className="sr-only">{t.list}</h3>
+        {dates.length === 0 && <p className="max-w-[46ch] border-y border-deep py-8 text-frost">{t.empty}</p>}
         <ol className="divide-y divide-deep border-y border-deep">
           {visible.map((d) => {
             const f = fmt(d.date);
             const show = byShow[d.show];
+            const state = ticketState(d);
             return (
               <li
                 key={d.id}
@@ -178,7 +181,9 @@ export function TourView({
                   </span>
                 </time>
                 <div className="min-w-0">
-                  <p className="display truncate text-[30px] leading-none sm:text-[38px]">{d.city}</p>
+                  <p className={`display truncate text-[30px] leading-none sm:text-[38px] ${state === "cancelled" ? "text-frost line-through decoration-1" : ""}`}>
+                    {d.city}
+                  </p>
                   <p className="mt-1.5 truncate text-[13px] text-frost">
                     {d.venue} · {d.time}
                   </p>
@@ -195,13 +200,13 @@ export function TourView({
                   )}
                 </div>
                 <IceButton
-                  href={d.tickets}
+                  href={state === "tickets" ? d.tickets : null}
                   seed={d.id}
                   accent={show?.accent}
-                  disabled={!d.tickets}
+                  disabled={state !== "tickets"}
                   ariaLabel={`${d.city}, ${f.day} ${f.month}`}
                 >
-                  {d.tickets ? t.tickets : t.soon}
+                  {t[state]}
                 </IceButton>
               </li>
             );

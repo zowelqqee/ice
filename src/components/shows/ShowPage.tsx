@@ -3,6 +3,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { gsap } from "gsap";
 import type { Show, TourDate, Track } from "@/lib/data";
+import { ticketState } from "@/lib/ticket";
 import { ShowVisual } from "./ShowVisual";
 import { LoopVideo } from "../media/Media";
 import { BladeLink } from "../shell/Transition";
@@ -188,8 +189,13 @@ export function ShowPage({
                     <span className="ml-3 text-[13px] text-frost">{d.venue}</span>
                     {d.placeholder && <span className="ml-3 border border-accent/50 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-accent">{tTour.sample}</span>}
                   </p>
-                  <IceButton href={d.tickets} disabled={!d.tickets} seed={d.id} accent={show.accent}>
-                    {d.tickets ? tTour.tickets : tTour.soon}
+                  <IceButton
+                    href={ticketState(d) === "tickets" ? d.tickets : null}
+                    disabled={ticketState(d) !== "tickets"}
+                    seed={d.id}
+                    accent={show.accent}
+                  >
+                    {tTour[ticketState(d)]}
                   </IceButton>
                 </li>
               ))}

@@ -45,3 +45,9 @@ next-env.d.ts
 
 # python bytecode (Blender build scripts)
 __pycache__/
+
+# admin data (SQLite) and its backups
+/data/
+/backups/
+
+!.env.example

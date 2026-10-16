@@ -17,11 +17,14 @@ export interface MapStop {
  * public/media/tour-map.svg by scripts/build-map.mjs (no geodata in the app bundle).
  */
 export function buildTourMap(dates: TourDate[]) {
-  const projection = tourProjection(dates.map((d) => [d.lon, d.lat]));
-  const stops: MapStop[] = dates.map((d) => {
-    const [x, y] = projection([d.lon, d.lat]) ?? [0, 0];
-    return { id: d.id, show: d.show, city: d.city, x: +x.toFixed(1), y: +y.toFixed(1) };
-  });
+  const projection = tourProjection();
+  const stops: MapStop[] = [];
+  for (const d of dates) {
+    if (d.lat === null || d.lon === null || d.status === "cancelled") continue;
+    const p = projection([d.lon, d.lat]);
+    if (!p || p[0] < 0 || p[1] < 0 || p[0] > MAP_W || p[1] > MAP_H) continue; // outside the frame
+    stops.push({ id: d.id, show: d.show, city: d.city, x: +p[0].toFixed(1), y: +p[1].toFixed(1) });
+  }
 
   // the route: arcs between consecutive distinct cities, bowed like a blade trace
   const route: string[] = [];

@@ -3,8 +3,6 @@ import "./globals.css";
 import { display, mono, sans } from "./fonts";
 import { getDictionary } from "@/i18n";
 import { site } from "@/lib/site";
-import { Shell } from "@/components/shell/Shell";
-import { Footer } from "@/components/Footer";
 
 const t = getDictionary();
 
@@ -32,12 +30,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
-      <body>
-        <Shell t={t}>
-          <div id="content">{children}</div>
-          <Footer t={t.footer} />
-        </Shell>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Pre-renders the land layer of the tour map to public/media/tour-map.svg, framed by the same
-// projection the page uses for the stops. Runs before dev/build (package.json pre-scripts).
+// Pre-renders the land layer of the tour map to public/media/tour-map.svg, in the same fixed
+// frame the page uses for the stops. Runs before dev/build (package.json pre-scripts).
 // Only coastlines and borders are written: no names or other attributes from the atlas.
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { geoPath } from "d3-geo";
 import { feature, mesh } from "topojson-client";
@@ -10,11 +10,10 @@ import { MAP_H, MAP_W, tourProjection } from "../src/lib/tourProjection.mjs";
 
 const require = createRequire(import.meta.url);
 const root = new URL("..", import.meta.url).pathname;
-const tour = JSON.parse(readFileSync(`${root}src/data/tour.json`, "utf8")).dates;
 const land = require("world-atlas/land-50m.json");
 const countries = require("world-atlas/countries-50m.json");
 
-const path = geoPath(tourProjection(tour.map((d) => [d.lon, d.lat]))).digits(0);
+const path = geoPath(tourProjection()).digits(0);
 const landD = path(feature(land, land.objects.land)) ?? "";
 const bordersD = path(mesh(countries, countries.objects.countries, (a, b) => a !== b)) ?? "";
 

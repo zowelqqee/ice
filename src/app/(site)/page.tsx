@@ -5,6 +5,9 @@ import { MusicSection } from "@/components/music/MusicSection";
 import { getDictionary } from "@/i18n";
 import { site } from "@/lib/site";
 
+// tour dates come from the admin; a save refreshes the page at once, this is the safety net
+export const revalidate = 3600;
+
 export default function Page() {
   const t = getDictionary("en");
   const org = {

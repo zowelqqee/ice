@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { datesFor, getShow, shows, trackFor } from "@/lib/data";
+import { getShow, shows, trackFor } from "@/lib/data";
+import { upcomingEvents } from "@/lib/events";
 import { ShowPage } from "@/components/shows/ShowPage";
 import { eventsJsonLd } from "@/components/tour/TourSection";
 import { getDictionary } from "@/i18n";
 
-export const dynamicParams = false;
+// Dates come from the admin; a save refreshes the page at once, this is the safety net.
+// (No `dynamicParams = false`: with it, Next 15 answers 404 for these pages after a revalidation.
+// Unknown slugs still get a 404 from notFound() below.)
+export const revalidate = 3600;
 
 export function generateStaticParams() {
   return shows.map((s) => ({ slug: s.slug }));
@@ -32,7 +36,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const i = shows.indexOf(show);
   const next = shows[(i + 1) % shows.length];
   const t = getDictionary("en");
-  const dates = datesFor(show.slug);
+  const dates = (await upcomingEvents()).filter((d) => d.show === show.slug);
   const events = eventsJsonLd(dates);
   return (
     <>

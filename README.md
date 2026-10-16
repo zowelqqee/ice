@@ -39,13 +39,84 @@ npm run audit          # add -- --sheets for contact sheets of every shipped vid
 
 ## Deploy (Vercel)
 
-The GitHub repository is connected to a Vercel project, which picks up Next.js on its own. There is no `vercel.json` and no required environment variables.
+The GitHub repository is connected to a Vercel project, which picks up Next.js on its own. There is no `vercel.json`. The site itself needs no environment variables; the tour admin does (see [Admin](#admin-tour-events)).
 
 - **Production:** every push to `main` deploys to production.
 - **Previews:** other branches get preview deployments. Their `robots.txt` blocks indexing.
 - **Domain:** the canonical URL, used for Open Graph, the sitemap and schema.org, is `NEXT_PUBLIC_SITE_URL` when set. Otherwise it is the project's production domain on Vercel: the custom domain once attached, `*.vercel.app` until then.
 - **Build:** the build runs `prebuild` (the tour map) and then `next build`. Everything it needs is in the repository.
 - **Not in the repository:** the source footage and the 3D build tools (`~/ice/materials`, `~/ice/tools`). They are only needed to regenerate media.
+
+## Admin (tour events)
+
+`/admin` is where tour dates are managed: add, edit, duplicate, delete, publish. Everything else on the
+site (shows, music, texts) stays in files, see [Content](#content).
+
+- Sign-in: one login and password, set by environment variables. No outside service or account.
+- The session is a signed, httpOnly cookie, valid for 8 hours. After 5 wrong attempts within 15 minutes, sign-in is locked for 15 minutes for that address and that login.
+- The admin is not linked from the site, not in `robots.txt` or the sitemap, and is sent with `noindex`. It has no analytics.
+- Only events marked **Published** appear on the site. Past events drop off by themselves the day after. Saving an event refreshes the tour, the show pages, the schema.org events and the sitemap at once.
+- On first start the database is filled from `src/data/tour.json`, as unpublished drafts. Review them, set real venues and ticket links, and publish.
+- Without a working database the public site shows the dates from `src/data/tour.json`. This is what the live Vercel site does until a database is set up there (see the table below).
+
+### 1. Set the password
+
+```bash
+npm run admin:hash
+```
+
+It asks for the password (10+ characters) and prints two lines, `ADMIN_PASSWORD_HASH=…` and `SESSION_SECRET=…`.
+Put them, together with the login, in `.env.local` (on your machine or a server) or in Vercel → Settings → Environment Variables:
+
+```
+ADMIN_USER=tour
+ADMIN_PASSWORD_HASH=scrypt:32768:8:1:…
+SESSION_SECRET=…
+```
+
+The password itself is never stored, only its hash. To change it, run the command again and replace both lines;
+a new `SESSION_SECRET` also signs out every open session.
+
+### 2. Choose the database
+
+Set by environment variables only. Switching needs no code change; the tables are created on first use.
+
+| Where the site runs | Variables |
+|---|---|
+| Your own server (VPS, Docker with a volume) | `DB_DRIVER=sqlite` and `DATABASE_URL=file:./data/musical-on-ice.db` (both are the default) |
+| Vercel (no persistent disk) | hosted libSQL, e.g. Turso: `DB_DRIVER=libsql`, `DATABASE_URL=libsql://…`, `DATABASE_AUTH_TOKEN=…` |
+| Vercel or a server, with Postgres | `DB_DRIVER=postgres`, `DATABASE_URL=postgres://user:pass@host:5432/db` |
+
+On Vercel a SQLite file would be lost on every deploy, so the admin refuses `sqlite` there and says so on `/admin`.
+
+### 3. Deploy
+
+- **Vercel:** add the variables from steps 1 and 2 to the project (Production) and redeploy. Then open `https://<domain>/admin`.
+- **Own server:** `npm ci && npm run build && npm start` behind a reverse proxy with HTTPS. Keep `data/` on a persistent disk. The proxy must pass the client address in `X-Forwarded-For`, which the sign-in lockout counts by.
+
+Local try-out: put the variables in `.env.local`, run `npm run dev` and open http://localhost:3000/admin.
+
+### 4. Backups
+
+- **SQLite:**
+
+  ```bash
+  npm run db:backup
+  ```
+
+  This writes `backups/events-YYYY-MM-DD-HHMM.db` (UTC time), a consistent copy made with `VACUUM INTO` that is safe while the site runs. Run it from cron, e.g. daily, and copy `backups/` off the server.
+  To restore, stop the site, put the copy in place of the file named by `DATABASE_URL`, and start the site again.
+- **Turso:** `turso db shell <name> .dump > events.sql`, plus the provider's point-in-time restore.
+- **Postgres:** `pg_dump "$DATABASE_URL" -t events > events.sql`; restore with `psql "$DATABASE_URL" < events.sql`.
+
+`data/` and `backups/` are git-ignored: event data never goes into the repository.
+
+### Rules the admin enforces
+
+- Required: show (one of the 8 in `shows.json`), a real calendar date, a time (HH:MM), city, country and venue.
+- The ticket link is optional and must start with `https://`. Status is one of On sale, Sold out or Cancelled; sold-out and cancelled dates show that label instead of a ticket button.
+- Latin characters only. The previous market's countries are not offered.
+- `npm run audit` also checks every event in the database for Cyrillic and for previous-brand or previous-market words.
 
 ## Content
 
@@ -68,18 +139,15 @@ The GitHub repository is connected to a Vercel project, which picks up Next.js o
 
 The show page `/shows/<slug>` is generated automatically, and so is its sitemap entry.
 
-### Add tour dates
+### Tour dates
 
-Edit `src/data/tour.json`:
+Managed in [the admin](#admin-tour-events). `src/data/tour.json` is only the first fill of the database and
+the fallback when there is none; every date in it is a placeholder (shown with a "sample" badge and never
+published as a schema.org event).
 
-- `date` (ISO), local `time`, `city`, `country` (ISO-2), `venue`
-- `lat` / `lon`
-- `tickets`: the URL, or `null` to show "Soon"
-- `placeholder`
-
-The map is regenerated before every `dev` and `build` (`scripts/build-map.mjs`).
-
-Only entries with `placeholder: false` are published as schema.org `TheaterEvent`s. **Every date in the file today is a placeholder.**
+The map frame is fixed (Europe, the Mediterranean and the Gulf). A date outside it, or without a map
+position, is listed but not drawn. The land layer is pre-rendered before every `dev` and `build`
+(`scripts/build-map.mjs`).
 
 ### Add a music track
 
@@ -107,7 +175,11 @@ All interface text lives in `src/i18n/en.ts`. German, French, Spanish and Italia
 ## Architecture
 
 ```
-src/app/                    routes: / , /shows/[slug], sitemap, robots, 404
+src/app/(site)/             public routes: / , /shows/[slug] (site shell + footer)
+src/app/admin/              tour admin: sign-in, events list, add/edit form, server actions
+src/app/                    root layout, sitemap, robots, 404
+src/lib/db/                 Drizzle schema (SQLite + Postgres) and connection by DB_DRIVER
+src/lib/events.ts, auth.ts  events repository + validation; admin sign-in, session, lockout
 src/components/hero/        hero DOM + canvas; shaders/ (skater SDF, skirt, ice, beam, snow, spray)
 src/components/shows/       horizontal journey, show visual, show page
 src/components/tour/        server section (map projection, JSON-LD) + client view

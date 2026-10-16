@@ -29,10 +29,11 @@ export interface TourDate {
   city: string;
   country: string;
   venue: string;
-  lat: number;
-  lon: number;
+  lat: number | null; // map position; events without one are listed but not drawn
+  lon: number | null;
   tickets: string | null;
-  placeholder: boolean;
+  status: "on_sale" | "sold_out" | "cancelled";
+  placeholder: boolean; // sample dates from tour.json (shown with a "sample" badge, never as schema.org events)
 }
 export interface Track {
   id: string;
@@ -44,9 +45,11 @@ export interface Track {
 }
 
 export const shows = showsJson.shows as Show[];
-export const tour = (tourJson.dates as TourDate[]).slice().sort((a, b) => a.date.localeCompare(b.date));
+// The tour dates file: the seed for the admin's database, and the fallback when no database is set up.
+export const tour: TourDate[] = tourJson.dates
+  .map((d) => ({ ...d, status: "on_sale" as const }))
+  .sort((a, b) => a.date.localeCompare(b.date));
 export const tracks = musicJson.tracks as Track[];
 
 export const getShow = (slug: string) => shows.find((s) => s.slug === slug);
-export const datesFor = (slug: string) => tour.filter((d) => d.show === slug);
 export const trackFor = (id: string | null) => (id ? tracks.find((t) => t.id === id) : undefined);

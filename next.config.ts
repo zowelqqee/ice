@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // database drivers stay plain Node modules (native SQLite binding, sockets)
+  serverExternalPackages: ["@libsql/client", "libsql", "postgres"],
   // lets a production build run beside `next dev` without sharing .next
   distDir: process.env.NEXT_DIST_DIR || ".next",
   async headers() {
@@ -11,6 +13,9 @@ const nextConfig: NextConfig = {
     return [
       { source: "/media/:path*", headers: cache },
       { source: "/models/:path*", headers: cache },
+      // the admin never appears in search results (and is not listed in robots.txt or the sitemap)
+      { source: "/admin/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }, { key: "Cache-Control", value: "no-store" }] },
+      { source: "/admin", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }, { key: "Cache-Control", value: "no-store" }] },
       {
         source: "/:path*",
         headers: [
