@@ -37,6 +37,16 @@ Audit (run after any content or media change; exits non-zero on failure):
 npm run audit          # add -- --sheets for contact sheets of every shipped video in .audit/
 ```
 
+## Deploy (Vercel)
+
+The GitHub repository is connected to a Vercel project, which picks up Next.js on its own. There is no `vercel.json` and no required environment variables.
+
+- **Production:** every push to `main` deploys to production.
+- **Previews:** other branches get preview deployments. Their `robots.txt` blocks indexing.
+- **Domain:** the canonical URL, used for Open Graph, the sitemap and schema.org, is `NEXT_PUBLIC_SITE_URL` when set. Otherwise it is the project's production domain on Vercel: the custom domain once attached, `*.vercel.app` until then.
+- **Build:** the build runs `prebuild` (the tour map) and then `next build`. Everything it needs is in the repository.
+- **Not in the repository:** the source footage and the 3D build tools (`~/ice/materials`, `~/ice/tools`). They are only needed to regenerate media.
+
 ## Content
 
 ### Add or edit a show
