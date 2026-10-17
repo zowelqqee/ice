@@ -61,11 +61,15 @@ site (shows, music, texts) stays in files, see [Content](#content).
 
 ### 1. Set the password
 
+In a terminal, go to the project folder first (npm looks for `package.json` there), then run the script:
+
 ```bash
+cd ~/ice/musical-on-ice
 npm run admin:hash
 ```
 
-It asks for the password (10+ characters) and prints two lines, `ADMIN_PASSWORD_HASH=…` and `SESSION_SECRET=…`.
+It asks for the password twice (10+ characters; nothing is shown while you type) and prints two lines,
+`ADMIN_PASSWORD_HASH=…` and `SESSION_SECRET=…`.
 Put them, together with the login, in `.env.local` (on your machine or a server) or in Vercel → Settings → Environment Variables:
 
 ```
@@ -88,6 +92,12 @@ Set by environment variables only. Switching needs no code change; the tables ar
 | Vercel or a server, with Postgres | `DB_DRIVER=postgres`, `DATABASE_URL=postgres://user:pass@host:5432/db` |
 
 On Vercel a SQLite file would be lost on every deploy, so the admin refuses `sqlite` there and says so on `/admin`.
+
+Easiest on Vercel: Storage → Create Database → **Neon** (in the marketplace list), connected to the project.
+Neon adds its own variables; without `DATABASE_URL` the site reads `POSTGRES_URL` from them, so only
+`DB_DRIVER=postgres` has to be added by hand. (Likewise `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` for
+Turso's integration.) Options in a hosted address that the Postgres driver would pass on to the server
+and get refused, such as Neon's `channel_binding`, are dropped.
 
 ### 3. Deploy
 

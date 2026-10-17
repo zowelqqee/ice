@@ -11,14 +11,33 @@ import { CREATE_SQL, pgAttempts, pgEvents, sqliteAttempts, sqliteEvents } from "
 //   DB_DRIVER=sqlite   (default) DATABASE_URL=file:./data/musical-on-ice.db   a file on this server's disk
 //   DB_DRIVER=libsql   DATABASE_URL=libsql://…  DATABASE_AUTH_TOKEN=…           hosted libSQL (e.g. Turso)
 //   DB_DRIVER=postgres DATABASE_URL=postgres://…                                 any Postgres
+// Without DATABASE_URL, the variables that Vercel's database integrations add are used:
+// POSTGRES_URL (Neon), then POSTGRES_URL_NON_POOLING; TURSO_DATABASE_URL and TURSO_AUTH_TOKEN.
 // Tables are created on first use and seeded from src/data/tour.json (as unpublished drafts).
 
 export type Driver = "sqlite" | "libsql" | "postgres";
 
+const env = (...names: string[]) => names.map((n) => process.env[n]?.trim()).find(Boolean) ?? "";
+
 export function dbConfig() {
   const driver = (process.env.DB_DRIVER ?? "sqlite").trim().toLowerCase() as Driver;
-  const url = process.env.DATABASE_URL?.trim() || (driver === "sqlite" ? "file:./data/musical-on-ice.db" : "");
-  return { driver, url, token: process.env.DATABASE_AUTH_TOKEN?.trim() || undefined };
+  const url =
+    driver === "postgres"
+      ? env("DATABASE_URL", "POSTGRES_URL", "POSTGRES_URL_NON_POOLING")
+      : driver === "libsql"
+        ? env("DATABASE_URL", "TURSO_DATABASE_URL")
+        : env("DATABASE_URL") || "file:./data/musical-on-ice.db";
+  return { driver, url, token: env("DATABASE_AUTH_TOKEN", "TURSO_AUTH_TOKEN") || undefined };
+}
+
+/** postgres.js sends every query parameter it does not know to the server as a setting, and the
+ *  server refuses unknown ones. Hosted URLs carry client-side options (Neon: channel_binding,
+ *  Prisma: pgbouncer, schema); keep only what postgres.js or the server understands. */
+const PG_PARAMS = new Set(["sslmode", "sslrootcert", "connect_timeout", "options", "application_name"]);
+export function pgUrl(raw: string) {
+  const u = new URL(raw);
+  for (const key of [...u.searchParams.keys()]) if (!PG_PARAMS.has(key)) u.searchParams.delete(key);
+  return u.toString();
 }
 
 /** Whether this host can keep the data. A SQLite file needs a persistent disk, which serverless
@@ -28,7 +47,7 @@ export function dbStatus(): { ok: true } | { ok: false; reason: string } {
   if (!["sqlite", "libsql", "postgres"].includes(driver)) return { ok: false, reason: `Unknown DB_DRIVER "${driver}".` };
   if (driver === "sqlite" && process.env.VERCEL)
     return { ok: false, reason: "This host has no persistent disk for a SQLite file. Set DB_DRIVER to libsql or postgres." };
-  if (!url) return { ok: false, reason: "DATABASE_URL is not set." };
+  if (!url) return { ok: false, reason: "DATABASE_URL is not set (nor POSTGRES_URL / TURSO_DATABASE_URL from a Vercel integration)." };
   return { ok: true };
 }
 
@@ -68,7 +87,7 @@ async function open(): Promise<DbHandle> {
   if (driver === "postgres") {
     const { default: postgres } = await import("postgres");
     const { drizzle } = await import("drizzle-orm/postgres-js");
-    const db = drizzle(postgres(url, { max: 3, prepare: false }));
+    const db = drizzle(postgres(pgUrl(url), { max: 3, prepare: false })); // prepare off: works through poolers (PgBouncer)
     for (const q of CREATE_SQL.postgres) await db.execute(ddl(q));
     h = { db: db as unknown as Db, events: pgEvents as unknown as typeof sqliteEvents, attempts: pgAttempts as unknown as typeof sqliteAttempts, driver };
   } else {
