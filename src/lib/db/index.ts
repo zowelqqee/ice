@@ -32,6 +32,13 @@ export function dbStatus(): { ok: true } | { ok: false; reason: string } {
   return { ok: true };
 }
 
+// SQL injection: every query in the app is built with Drizzle (select / insert / update / delete
+// with eq, inArray, …), which sends values as bound parameters, separately from the SQL text.
+// The only raw SQL is the fixed table definitions below; the type of ddl() accepts nothing else,
+// and the lint rules in eslint.config.mjs reject sql.raw or string-built queries anywhere else.
+type Ddl = (typeof CREATE_SQL)[keyof typeof CREATE_SQL][number];
+const ddl = (statement: Ddl) => sql.raw(statement);
+
 // The repository is written against the SQLite flavour of Drizzle; the Postgres database and
 // tables have the same runtime API (select / insert / update / delete), so they are cast to it.
 type Db = LibSQLDatabase;
@@ -62,12 +69,12 @@ async function open(): Promise<DbHandle> {
     const { default: postgres } = await import("postgres");
     const { drizzle } = await import("drizzle-orm/postgres-js");
     const db = drizzle(postgres(url, { max: 3, prepare: false }));
-    for (const q of CREATE_SQL.postgres) await db.execute(sql.raw(q));
+    for (const q of CREATE_SQL.postgres) await db.execute(ddl(q));
     h = { db: db as unknown as Db, events: pgEvents as unknown as typeof sqliteEvents, attempts: pgAttempts as unknown as typeof sqliteAttempts, driver };
   } else {
     if (driver === "sqlite" && url.startsWith("file:")) mkdirSync(dirname(url.slice(5)), { recursive: true });
     const db = drizzleLibsql(createClient({ url, authToken: token }));
-    for (const q of CREATE_SQL.sqlite) await db.run(sql.raw(q));
+    for (const q of CREATE_SQL.sqlite) await db.run(ddl(q));
     h = { db, events: sqliteEvents, attempts: sqliteAttempts, driver };
   }
   await seed(h);

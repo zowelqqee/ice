@@ -25,6 +25,6 @@ mkdirSync("backups", { recursive: true });
 const stamp = new Date().toISOString().slice(0, 16).replace("T", "-").replace(":", "");
 const out = `backups/events-${stamp}.db`;
 const db = createClient({ url: `file:${file}` });
-await db.execute(`VACUUM INTO '${out.replace(/'/g, "''")}'`);
+await db.execute({ sql: "VACUUM INTO ?", args: [out] }); // bound parameter, never spliced into the SQL
 const { rows } = await createClient({ url: `file:${out}` }).execute("SELECT count(*) AS n FROM events");
 console.log(`→ ${out} (${rows[0].n} events)`);

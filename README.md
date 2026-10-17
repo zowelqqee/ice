@@ -118,6 +118,23 @@ Local try-out: put the variables in `.env.local`, run `npm run dev` and open htt
 - Latin characters only. The previous market's countries are not offered.
 - `npm run audit` also checks every event in the database for Cyrillic and for previous-brand or previous-market words.
 
+### SQL injection
+
+Every query is built with Drizzle (`select`, `insert`, `update`, `delete` with `eq`, `inArray`, …), which sends
+values as bound parameters, separately from the SQL text: whatever is typed into a form, a URL or the
+sign-in field stays plain data. On top of that:
+
+- The only raw SQL is the fixed table definitions in `src/lib/db/schema.ts`. They run through a helper
+  whose type accepts nothing else.
+- Lint rules (`eslint.config.mjs`) reject `sql.raw`, SQL assembled from template strings or `+`,
+  `unsafe()`, and database clients imported outside `src/lib/db`. `next build` runs lint, so such code
+  cannot be deployed.
+- Event ids from URLs and forms are checked against the id format before any query; anything else gets
+  a 404 or is ignored.
+
+When adding a query, use Drizzle's builders or the `` sql`… ${value}` `` template (it binds `value`).
+For a query outside Drizzle, use `{ sql: "… ? …", args: [value] }`, never string building.
+
 ## Content
 
 ### Add or edit a show

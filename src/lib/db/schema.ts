@@ -79,4 +79,4 @@ export const CREATE_SQL = {
     `CREATE TABLE IF NOT EXISTS login_attempts (
       key TEXT PRIMARY KEY, fails INTEGER NOT NULL, first_at BIGINT NOT NULL, locked_until BIGINT NOT NULL)`,
   ],
-};
+} as const;

@@ -94,6 +94,11 @@ export function parseEvent(form: FormData): { ok: true; value: EventInput } | { 
 }
 
 // ---------------------------------------------------------------- admin repository
+// Event ids are UUIDs (or the slugs of the first fill from tour.json). Anything else coming from a
+// URL or a form is refused before it reaches the database (values are bound parameters anyway).
+const ID = /^[A-Za-z0-9-]{1,64}$/;
+export const isEventId = (id: unknown): id is string => typeof id === "string" && ID.test(id);
+
 export async function listEvents(order: "asc" | "desc" = "asc"): Promise<EventRow[]> {
   const { db, events } = await getDb();
   const dir = order === "asc" ? asc : desc;
@@ -101,6 +106,7 @@ export async function listEvents(order: "asc" | "desc" = "asc"): Promise<EventRo
 }
 
 export async function getEvent(id: string): Promise<EventRow | undefined> {
+  if (!isEventId(id)) return undefined;
   const { db, events } = await getDb();
   const [row] = await db.select().from(events).where(eq(events.id, id));
   return row;
@@ -126,6 +132,7 @@ export async function createEvent(input: EventInput): Promise<string> {
 }
 
 export async function updateEvent(id: string, input: EventInput) {
+  if (!isEventId(id)) return;
   const { db, events } = await getDb();
   await db
     .update(events)
@@ -134,6 +141,7 @@ export async function updateEvent(id: string, input: EventInput) {
 }
 
 export async function deleteEvent(id: string) {
+  if (!isEventId(id)) return;
   const { db, events } = await getDb();
   await db.delete(events).where(eq(events.id, id));
 }

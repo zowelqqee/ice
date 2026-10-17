@@ -14,7 +14,7 @@ import {
   requireAdmin,
 } from "@/lib/auth";
 import { dbStatus } from "@/lib/db";
-import { createEvent, deleteEvent, duplicateEvent, parseEvent, updateEvent, type FieldErrors } from "@/lib/events";
+import { createEvent, deleteEvent, duplicateEvent, isEventId, parseEvent, updateEvent, type FieldErrors } from "@/lib/events";
 
 export type LoginState = { error?: string } | undefined;
 /** On a failed save the typed values come back, so the form shows them again (React resets
@@ -52,6 +52,7 @@ export async function logoutAction() {
 
 export async function saveEventAction(id: string | null, _prev: EventFormState, form: FormData): Promise<EventFormState> {
   await requireAdmin();
+  if (id !== null && !isEventId(id)) redirect("/admin");
   const parsed = parseEvent(form);
   if (!parsed.ok) {
     const values: Record<string, string> = {};
@@ -66,8 +67,9 @@ export async function saveEventAction(id: string | null, _prev: EventFormState, 
 
 export async function deleteEventAction(form: FormData) {
   await requireAdmin();
-  const id = String(form.get("id") ?? "");
-  if (id) await deleteEvent(id);
+  const id = form.get("id");
+  if (!isEventId(id)) redirect("/admin");
+  await deleteEvent(id);
   refreshPublic();
   redirect("/admin?done=deleted");
 }
