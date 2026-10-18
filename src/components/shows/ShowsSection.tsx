@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { shows, type Show } from "@/lib/data";
+import type { Show } from "@/lib/data";
 import { ShowVisual } from "./ShowVisual";
 import { BladeLink } from "../shell/Transition";
 import type { Dictionary } from "@/i18n";
@@ -56,7 +56,7 @@ function Panel({ show, i, t }: { show: Show; i: number; t: Dictionary["shows"] }
   );
 }
 
-export function ShowsSection({ t }: { t: Dictionary["shows"] }) {
+export function ShowsSection({ t, shows }: { t: Dictionary["shows"]; shows: Show[] }) {
   const section = useRef<HTMLElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const progress = useRef<HTMLSpanElement>(null);

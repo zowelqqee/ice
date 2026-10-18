@@ -1,12 +1,13 @@
 import { buildTourMap, MAP_H, MAP_W } from "@/lib/map";
-import { shows, type TourDate } from "@/lib/data";
+import type { Show, TourDate } from "@/lib/data";
 import { upcomingEvents } from "@/lib/events";
+import { getShows, getSiteSettings } from "@/lib/content";
 import { site } from "@/lib/site";
 import { TourView } from "./TourView";
 import type { Dictionary } from "@/i18n";
 
 /** schema.org events for confirmed dates only (sample dates from tour.json are never published as events). */
-export function eventsJsonLd(dates: TourDate[]) {
+export function eventsJsonLd(dates: TourDate[], shows: Show[], ogImage: string | null) {
   return dates
     .filter((d) => !d.placeholder)
     .map((d) => {
@@ -19,7 +20,7 @@ export function eventsJsonLd(dates: TourDate[]) {
         eventStatus: `https://schema.org/${d.status === "cancelled" ? "EventCancelled" : "EventScheduled"}`,
         eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
         location: { "@type": "Place", name: d.venue, address: { "@type": "PostalAddress", addressLocality: d.city, addressCountry: d.country } },
-        image: [`${site.url}/og.jpg`],
+        image: [`${site.url}${ogImage ? `${ogImage}.jpg` : "/og.jpg"}`],
         description: show?.logline,
         performer: { "@type": "PerformingGroup", name: site.name },
         organizer: { "@type": "Organization", name: site.name, url: site.url },
@@ -32,10 +33,10 @@ export function eventsJsonLd(dates: TourDate[]) {
 
 /** The tour: upcoming published events from the admin's database (src/data/tour.json without one). */
 export async function TourSection({ t }: { t: Dictionary["tour"] }) {
-  const dates = await upcomingEvents();
+  const [dates, shows, settings] = await Promise.all([upcomingEvents(), getShows(), getSiteSettings()]);
   const { stops, route } = buildTourMap(dates);
   const info = shows.map(({ slug, title, subtitle, accent }) => ({ slug, title, subtitle, accent }));
-  const events = eventsJsonLd(dates);
+  const events = eventsJsonLd(dates, shows, settings.ogImage);
   return (
     <section id="tour" aria-labelledby="tour-title" className="relative px-[var(--gutter)] py-28 md:py-40">
       <p className="eyebrow mb-6">{t.eyebrow}</p>

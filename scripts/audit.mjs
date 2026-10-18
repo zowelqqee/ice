@@ -7,13 +7,15 @@
 //   3. Metadata left in shipped media (EXIF/XMP/IPTC/comments in images; tags in video/audio)
 //   4. Non-ASCII file names in public/ and src/
 //   5. Third-party requests: fonts, analytics, trackers, any external URL not on the allow-list
-//   6. Tour events typed in the admin: checks 1 and 2 over every row of the events database
-//      (the database named by DB_DRIVER / DATABASE_URL in .env.local, .env or the environment)
+//   6. Content typed in the admin: checks 1 and 2 over every row of the database (tour dates,
+//      shows, music, texts, settings), and check 3 over the uploaded media (disk or Vercel Blob)
+//      (database and storage as named in .env.local, .env or the environment)
 //
 //   usage: node scripts/audit.mjs [--sheets]   (--sheets also writes contact sheets of every
 //          shipped video to .audit/ for the manual watermark/face check)
 
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, relative, extname, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 
@@ -46,6 +48,9 @@ const ALLOWED_URL = [
   /^http:\/\/www\.w3\.org\//,
   /^https:\/\/github\.com\/(google|vercel|mrdoob|pmndrs)/, // licence headers in vendored files
   /^https:\/\/\$\{vercel\}$/, // src/lib/site.ts: the site's own production domain, read from the host's environment
+  // the Vercel Blob store that holds the admin's uploads, built from its token (next.config.ts proxies
+  // it to /u/* on the site's own domain, so browsers never contact it directly)
+  /^https:\/\/\$\{(blobStore|storeId)\}\.public\.blob\.vercel-storage\.com/,
 ];
 const TRACKERS = [/fonts\.googleapis/i, /fonts\.gstatic/i, /google-analytics/i, /googletagmanager/i, /gtag\(/, /connect\.facebook/i, /hotjar/i, /plausible\.io/i, /segment\.(io|com)/i, /mixpanel/i, /use\.typekit/i];
 
@@ -108,45 +113,6 @@ for (const f of files) {
         if (!ALLOWED_URL.some((a) => a.test(m[0]))) fail("external-url", `${r}:${i + 1}`, m[0]);
     }
   });
-}
-
-// 6: what the admin put in the database (the admin's code and built pages are covered above)
-for (const f of [".env.local", ".env"]) if (existsSync(join(ROOT, f))) process.loadEnvFile(join(ROOT, f));
-let dbNote = "";
-{
-  const driver = (process.env.DB_DRIVER ?? "sqlite").trim().toLowerCase();
-  const url = process.env.DATABASE_URL?.trim() || (driver === "sqlite" ? "file:./data/musical-on-ice.db" : "");
-  const file = url.startsWith("file:") ? resolve(ROOT, url.slice(5)) : null;
-  let rows = null;
-  try {
-    if (driver === "postgres" && url) {
-      const { default: postgres } = await import("postgres");
-      const pg = postgres(url, { max: 1 });
-      rows = await pg`SELECT * FROM events`;
-      await pg.end();
-    } else if (url && (!file || existsSync(file))) {
-      const { createClient } = await import("@libsql/client");
-      const db = createClient({ url: file ? `file:${file}` : url, authToken: process.env.DATABASE_AUTH_TOKEN });
-      rows = (await db.execute("SELECT * FROM events")).rows;
-    }
-  } catch (e) {
-    if (!/no such table|does not exist/i.test(String(e))) fail("database", driver, `could not read the events: ${e.message}`);
-    rows = [];
-  }
-  if (rows === null) dbNote = `no events database found (${driver}${file ? `, ${relative(ROOT, file)}` : ""}): nothing to check`;
-  else {
-    dbNote = `${rows.length} events in the ${driver} database`;
-    for (const row of rows) {
-      const where = `events:${row.id} (${row.date} ${row.city})`;
-      for (const [col, value] of Object.entries(row)) {
-        if (typeof value !== "string") continue;
-        if (CYRILLIC.test(value)) fail("database", where, `Cyrillic in ${col}: ${value.slice(0, 80)}`);
-        for (const k of KEYWORDS) if (k.test(value)) fail("database", where, `${k} in ${col}: ${value.slice(0, 80)}`);
-        if (col === "tickets" && !value.startsWith("https://")) fail("database", where, `ticket link is not https: ${value.slice(0, 80)}`);
-      }
-      if (["RU", "MD"].includes(String(row.country).toUpperCase())) fail("database", where, `country ${row.country}`);
-    }
-  }
 }
 
 // 4: ASCII file names in what ships
@@ -233,6 +199,99 @@ for (const f of media.filter((f) => extname(f).toLowerCase() === ".glb")) {
   if (/extras/.test(json) && /"extras":\{[^}]/.test(json)) fail("model-metadata", rel(f), "non-empty extras");
 }
 
+// 6: what the admin put in the database and uploaded (the admin's code and built pages are
+// covered above). Database and storage are the ones named by .env.local / .env / the environment.
+for (const f of [".env.local", ".env"]) if (existsSync(join(ROOT, f))) process.loadEnvFile(join(ROOT, f));
+let dbNote = "";
+let uploadNote = "";
+const TABLES = ["events", "shows", "tracks", "settings"];
+const SELECT_ALL = { events: "SELECT * FROM events", shows: "SELECT * FROM shows", tracks: "SELECT * FROM tracks", settings: "SELECT * FROM settings" };
+{
+  const env = (...names) => names.map((n) => process.env[n]?.trim()).find(Boolean) ?? "";
+  const driver = (process.env.DB_DRIVER ?? "sqlite").trim().toLowerCase();
+  let url =
+    driver === "postgres" ? env("DATABASE_URL", "POSTGRES_URL", "POSTGRES_URL_NON_POOLING")
+    : driver === "libsql" ? env("DATABASE_URL", "TURSO_DATABASE_URL")
+    : env("DATABASE_URL") || "file:./data/musical-on-ice.db";
+  const file = url.startsWith("file:") ? resolve(ROOT, url.slice(5)) : null;
+  const rowsByTable = {};
+  try {
+    if (driver === "postgres" && url) {
+      const u = new URL(url); // same clean-up as src/lib/db/index.ts (pgUrl)
+      for (const k of [...u.searchParams.keys()]) if (!["sslmode", "sslrootcert", "connect_timeout", "options", "application_name"].includes(k)) u.searchParams.delete(k);
+      const { default: postgres } = await import("postgres");
+      const pg = postgres(u.toString(), { max: 1 });
+      const present = new Set((await pg`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`).map((r) => r.tablename));
+      for (const t of TABLES) if (present.has(t)) rowsByTable[t] = [...(await pg`SELECT * FROM ${pg(t)}`)]; // pg(t): quoted identifier
+      await pg.end();
+    } else if (url && (!file || existsSync(file))) {
+      const { createClient } = await import("@libsql/client");
+      const db = createClient({ url: file ? `file:${file}` : url, authToken: env("DATABASE_AUTH_TOKEN", "TURSO_AUTH_TOKEN") || undefined });
+      const present = new Set((await db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")).rows.map((r) => r.name));
+      for (const t of TABLES) if (present.has(t)) rowsByTable[t] = (await db.execute(SELECT_ALL[t])).rows;
+    } else url = "";
+  } catch (e) {
+    fail("database", driver, `could not read the database: ${e.message}`);
+  }
+  if (!url) dbNote = `no database found (${driver}${file ? `, ${relative(ROOT, file)}` : ""}): nothing to check`;
+  else {
+    dbNote = TABLES.map((t) => `${rowsByTable[t]?.length ?? 0} ${t}`).join(", ") + ` in the ${driver} database`;
+    const label = { events: (r) => `${r.date} ${r.city}`, shows: (r) => r.slug, tracks: (r) => r.id, settings: (r) => r.key };
+    for (const t of TABLES)
+      for (const row of rowsByTable[t] ?? []) {
+        const where = `${t}:${label[t](row)}`;
+        for (const [col, value] of Object.entries(row)) {
+          if (typeof value !== "string") continue;
+          if (CYRILLIC.test(value)) fail("database", where, `Cyrillic in ${col}: ${value.slice(0, 80)}`);
+          for (const k of KEYWORDS) if (k.test(value)) fail("database", where, `${k} in ${col}: ${value.slice(0, 80)}`);
+          if (t === "events" && col === "tickets" && !value.startsWith("https://")) fail("database", where, `ticket link is not https: ${value.slice(0, 80)}`);
+        }
+        if (t === "events" && ["RU", "MD"].includes(String(row.country).toUpperCase())) fail("database", where, `country ${row.country}`);
+      }
+  }
+}
+
+// 6b: metadata in uploaded media (the admin strips it on upload; this checks that it stayed so)
+{
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  const uploads = resolve(ROOT, process.env.UPLOADS_DIR?.trim() || "./data/uploads");
+  const checkFile = (path, name) => {
+    const ext = extname(path).toLowerCase();
+    if (MEDIA_IMG.has(ext)) {
+      const m = imageMeta(readFileSync(path), ext);
+      if (m.length) fail("upload-metadata", name, m.join(", "));
+    } else if (MEDIA_AV.has(ext) && ffprobe) {
+      const j = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format_tags:stream_tags", "-of", "json", path]).toString());
+      for (const tags of [j.format?.tags ?? {}, ...(j.streams ?? []).map((s) => s.tags ?? {})])
+        for (const [k, v] of Object.entries(tags)) {
+          if (/^(major_brand|minor_version|compatible_brands)$/.test(k)) continue;
+          if (!GENERIC_TAGS.test(k) || !GENERIC_VALUE.test(String(v).trim())) fail("upload-metadata", name, `${k}=${v}`);
+        }
+    }
+  };
+  if (blobToken) {
+    const { list } = await import("@vercel/blob");
+    const tmp = mkdtempSync(join(tmpdir(), "audit-"));
+    let n = 0;
+    for (let cursor; ; ) {
+      const page = await list({ prefix: "u/", cursor, limit: 1000 });
+      for (const b of page.blobs) {
+        const local = join(tmp, `f${n++}${extname(b.pathname)}`);
+        writeFileSync(local, Buffer.from(await (await fetch(b.url)).arrayBuffer()));
+        checkFile(local, `blob:${b.pathname}`);
+      }
+      if (!page.hasMore) break;
+      cursor = page.cursor;
+    }
+    rmSync(tmp, { recursive: true, force: true });
+    uploadNote = `${n} uploaded files in Vercel Blob`;
+  } else if (existsSync(join(uploads, "u"))) {
+    const found = walk(join(uploads, "u"));
+    for (const f of found) checkFile(f, relative(ROOT, f));
+    uploadNote = `${found.length} uploaded files in ${relative(ROOT, uploads) || uploads}`;
+  } else uploadNote = "no uploaded files";
+}
+
 // optional contact sheets for the manual watermark / face review
 if (process.argv.includes("--sheets") && ffprobe) {
   const dir = join(ROOT, ".audit");
@@ -255,11 +314,12 @@ const checks = [
   ["model-metadata", "3D model metadata (names, extras, asset block)"],
   ["third-party", "Third-party fonts / analytics / trackers"],
   ["external-url", "External URLs outside the allow-list"],
-  ["database", "Tour events typed in the admin (Cyrillic, keywords, https, country)"],
+  ["database", "Content typed in the admin: dates, shows, music, texts, settings (Cyrillic, keywords, https, country)"],
+  ["upload-metadata", "Metadata in files uploaded through the admin"],
 ];
 const date = new Date().toISOString().slice(0, 10);
 let md = `# Brand-separation audit\n\nGenerated by \`node scripts/audit.mjs\` on ${date}. Re-run after any content change.\n\n`;
-md += `Scanned: ${files.length} files (${textScanned} text files, including the production build in \`.next-build/\` when present), ${imgCount} images, ${avCount} video/audio files and ${glbCount} 3D models in \`public/\`. Admin data: ${dbNote}.\n\n`;
+md += `Scanned: ${files.length} files (${textScanned} text files, including the production build in \`.next-build/\` when present), ${imgCount} images, ${avCount} video/audio files and ${glbCount} 3D models in \`public/\`. Admin data: ${dbNote}; ${uploadNote}.\n\n`;
 md += `| Check | Result |\n|---|---|\n`;
 for (const [c, label] of checks) md += `| ${label} | ${byCheck(c).length ? `**FAIL** (${byCheck(c).length})` : "pass"} |\n`;
 const failures = results.filter((r) => !r.ok);

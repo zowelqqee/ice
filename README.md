@@ -39,7 +39,7 @@ npm run audit          # add -- --sheets for contact sheets of every shipped vid
 
 ## Deploy (Vercel)
 
-The GitHub repository is connected to a Vercel project, which picks up Next.js on its own. There is no `vercel.json`. The site itself needs no environment variables; the tour admin does (see [Admin](#admin-tour-events)).
+The GitHub repository is connected to a Vercel project, which picks up Next.js on its own. There is no `vercel.json`. The site itself needs no environment variables; the tour admin does (see [Admin](#admin)).
 
 - **Production:** every push to `main` deploys to production.
 - **Previews:** other branches get preview deployments. Their `robots.txt` blocks indexing.
@@ -47,17 +47,27 @@ The GitHub repository is connected to a Vercel project, which picks up Next.js o
 - **Build:** the build runs `prebuild` (the tour map) and then `next build`. Everything it needs is in the repository.
 - **Not in the repository:** the source footage and the 3D build tools (`~/ice/materials`, `~/ice/tools`). They are only needed to regenerate media.
 
-## Admin (tour events)
+## Admin
 
-`/admin` is where tour dates are managed: add, edit, duplicate, delete, publish. Everything else on the
-site (shows, music, texts) stays in files, see [Content](#content).
+`/admin` manages the site's content. Sections:
+
+| Section | What it edits |
+|---|---|
+| **Tour dates** | Dates: show, date and time, city, country, venue, ticket link, status, published. Add, edit, duplicate, delete. |
+| **Shows** | The repertoire: title, subtitle, pitch, story, highlights, duration, age, status, colour, music, shown/hidden, order. Pictures and video for the card, the show page header and the extra loop. Add and delete shows; each new show gets its page `/shows/<address>` and a sitemap entry. |
+| **Music** | The player in “Our music”: upload a recording, title, note, show, order, shown/hidden. |
+| **Texts** | Every line of the interface (menu, first screen, section titles, buttons, footer, page title and description for search engines). |
+| **Settings** | Booking and press emails, YouTube and Instagram links, the share picture for link previews. |
+
+Not in the admin, because they are code: the site address (`NEXT_PUBLIC_SITE_URL` or the Vercel domain),
+the logo, the 3D skater, the ice orchestra, the tour map's frame, and the translations (see below).
 
 - Sign-in: one login and password, set by environment variables. No outside service or account.
 - The session is a signed, httpOnly cookie, valid for 8 hours. After 5 wrong attempts within 15 minutes, sign-in is locked for 15 minutes for that address and that login.
 - The admin is not linked from the site, not in `robots.txt` or the sitemap, and is sent with `noindex`. It has no analytics.
 - Only events marked **Published** appear on the site. Past events drop off by themselves the day after. Saving an event refreshes the tour, the show pages, the schema.org events and the sitemap at once.
-- On first start the database is filled from `src/data/tour.json`, as unpublished drafts. Review them, set real venues and ticket links, and publish.
-- Without a working database the public site shows the dates from `src/data/tour.json`. This is what the live Vercel site does until a database is set up there (see the table below).
+- On first start the database is filled from the files: `src/data/tour.json` (as unpublished drafts: review them, set real venues and ticket links, publish), `src/data/shows.json`, `src/data/music.json`, the texts of `src/i18n/en.ts` and the contacts of `src/lib/site.ts` (as they are on the site). From then on the admin is the place to edit; the files stay as the fallback.
+- Without a working database the public site shows the content of those files. Every save in the admin refreshes the public pages at once.
 
 ### 1. Set the password
 
@@ -106,7 +116,31 @@ and get refused, such as Neon's `channel_binding`, are dropped.
 
 Local try-out: put the variables in `.env.local`, run `npm run dev` and open http://localhost:3000/admin.
 
-### 4. Backups
+### 4. Media uploads
+
+Pictures, video and recordings uploaded in the admin are processed on the server, like the original
+footage was by `scripts/media/`:
+
+- **Images** (JPEG, PNG, WebP, AVIF, HEIC…) are cropped to the slot around the most interesting part, saved as AVIF, WebP and JPEG, with metadata removed.
+- **Video** (MP4, MOV, WebM…) is cut to its first 15 seconds, without sound, cropped to the slot, and saved as H.264 MP4 with a still for the poster. Metadata is removed.
+- **Audio** (MP3, WAV, M4A, FLAC…) is brought to a steady loudness and saved as AAC and Opus, with metadata removed.
+
+Faces, logos and watermarks cannot be checked automatically. Before uploading, the admin asks you to confirm
+you checked them. Limits: images 40 MB, video 400 MB, audio 80 MB.
+
+Where the files go:
+
+| Where the site runs | Storage |
+|---|---|
+| Own server | the folder `data/uploads` (or `UPLOADS_DIR`), served at `/u/…`. Keep it on the persistent disk and in the backups. |
+| Vercel | **Vercel Blob**. In the project: Storage → Create Database → **Blob**, access **Public**, connect it to the project. Vercel adds `BLOB_READ_WRITE_TOKEN`; then **Redeploy**. Files are still served from the site's own domain (`/u/…`). |
+
+Without Blob on Vercel, uploads are switched off and the admin says so; everything else works.
+
+Video and audio need `ffmpeg`. It comes with the project (`ffmpeg-static`, allowed in `package.json`
+under `allowScripts`); `FFMPEG_PATH` can point to another binary.
+
+### 5. Backups
 
 - **SQLite:**
 
@@ -119,14 +153,19 @@ Local try-out: put the variables in `.env.local`, run `npm run dev` and open htt
 - **Turso:** `turso db shell <name> .dump > events.sql`, plus the provider's point-in-time restore.
 - **Postgres:** `pg_dump "$DATABASE_URL" -t events > events.sql`; restore with `psql "$DATABASE_URL" < events.sql`.
 
-`data/` and `backups/` are git-ignored: event data never goes into the repository.
+`data/` and `backups/` are git-ignored: content never goes into the repository.
+
+Uploaded files are not in the database. On your own server, back up `data/uploads` too, e.g.
+`tar czf backups/uploads-$(date +%F).tgz data/uploads`. Vercel Blob keeps its files itself.
 
 ### Rules the admin enforces
 
-- Required: show (one of the 8 in `shows.json`), a real calendar date, a time (HH:MM), city, country and venue.
+- Tour dates: a show (from the Shows section), a real calendar date, a time (HH:MM), city, country and venue.
 - The ticket link is optional and must start with `https://`. Status is one of On sale, Sold out or Cancelled; sold-out and cancelled dates show that label instead of a ticket button.
-- Latin characters only. The previous market's countries are not offered.
-- `npm run audit` also checks every event in the database for Cyrillic and for previous-brand or previous-market words.
+- Latin characters only, everywhere (dates, shows, music, texts). The previous market's countries are not offered.
+- Shows: title and pitch required; a page address of lowercase Latin letters, digits and dashes, fixed once created. A show with tour dates cannot be deleted (hide it, or delete the dates first).
+- Music: a recording is required. Settings: emails must be addresses, social links must be `https://` links to YouTube and Instagram.
+- `npm run audit` also checks everything in the database (dates, shows, music, texts, settings) for Cyrillic and for previous-brand or previous-market words, and the uploaded files for metadata.
 
 ### SQL injection
 
@@ -147,7 +186,10 @@ For a query outside Drizzle, use `{ sql: "… ? …", args: [value] }`, never st
 
 ## Content
 
-### Add or edit a show
+Shows, music, texts and contacts are edited in [the admin](#admin). The files below are the first fill of
+its database and the fallback without one; changing them later does not change a site that has a database.
+
+### Add or edit a show (in files)
 
 1. Add an entry to `src/data/shows.json`. Fields:
    - `slug`, `status` (`touring` | `coming` | `tba`), `title`, `subtitle`, `logline`
@@ -168,7 +210,7 @@ The show page `/shows/<slug>` is generated automatically, and so is its sitemap 
 
 ### Tour dates
 
-Managed in [the admin](#admin-tour-events). `src/data/tour.json` is only the first fill of the database and
+Managed in [the admin](#admin). `src/data/tour.json` is only the first fill of the database and
 the fallback when there is none; every date in it is a placeholder (shown with a "sample" badge and never
 published as a schema.org event).
 
@@ -176,7 +218,7 @@ The map frame is fixed (Europe, the Mediterranean and the Gulf). A date outside 
 position, is listed but not drawn. The land layer is pre-rendered before every `dev` and `build`
 (`scripts/build-map.mjs`).
 
-### Add a music track
+### Add a music track (in files)
 
 1. Add a `track` line to `scripts/media/music.sh` and run it. It writes `public/media/music/<id>.{webm,m4a}`, loudness-normalised and metadata-free.
 2. Add the track to `src/data/music.json`, and set `track` on the show in `shows.json` to give its page a Listen button.
@@ -191,13 +233,14 @@ The ice orchestra does not use these tracks: it plays an original theme with CC0
 
 ### Text and languages
 
-All interface text lives in `src/i18n/en.ts`. German, French, Spanish and Italian are wired in
-`src/i18n/index.ts` and fall back to English key by key. Show copy is in `shows.json`.
+The interface texts are edited in the admin (Texts); `src/i18n/en.ts` holds the originals, and a new text
+key added there shows up in the admin by itself. German, French, Spanish and Italian are wired in
+`src/i18n/index.ts` and fall back to English key by key; the site has no language switch yet.
 
 ### Contacts and domain
 
-`src/lib/site.ts`. Every value marked `PLACEHOLDER` needs replacing. The site URL can also be set with
-`NEXT_PUBLIC_SITE_URL`.
+Contacts and social links are edited in the admin (Settings); `src/lib/site.ts` holds the defaults (the
+emails there are placeholders). The site URL is `NEXT_PUBLIC_SITE_URL`, or the Vercel production domain.
 
 ## Architecture
 
@@ -207,6 +250,9 @@ src/app/admin/              tour admin: sign-in, events list, add/edit form, ser
 src/app/                    root layout, sitemap, robots, 404
 src/lib/db/                 Drizzle schema (SQLite + Postgres) and connection by DB_DRIVER
 src/lib/events.ts, auth.ts  events repository + validation; admin sign-in, session, lockout
+src/lib/content.ts          shows, music, texts, settings: reading (with file fallback), validation, saving
+src/lib/storage.ts, media.ts uploads: disk or Vercel Blob; processing with sharp and ffmpeg
+src/app/u/[...path]/        serves uploaded files from disk (Vercel Blob: proxied in next.config.ts)
 src/components/hero/        hero DOM + canvas; shaders/ (skater SDF, skirt, ice, beam, snow, spray)
 src/components/shows/       horizontal journey, show visual, show page
 src/components/tour/        server section (map projection, JSON-LD) + client view

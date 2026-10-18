@@ -93,8 +93,8 @@ export function LoopVideo({
       aria-label={alt || undefined}
       aria-hidden={alt ? undefined : true}
     >
-      {near && <source src={`${media.video}.webm`} type='video/webm; codecs="vp9"' />}
-      {near && <source src={`${media.video}.mp4`} type="video/mp4" />}
+      {near && (media.formats ?? ["webm", "mp4"]).includes("webm") && <source src={`${media.video}.webm`} type='video/webm; codecs="vp9"' />}
+      {near && (media.formats ?? ["webm", "mp4"]).includes("mp4") && <source src={`${media.video}.mp4`} type="video/mp4" />}
     </video>
   );
 }

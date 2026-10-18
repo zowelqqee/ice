@@ -1,15 +1,15 @@
 import type { MetadataRoute } from "next";
-import { shows } from "@/lib/data";
+import { getShows, lastContentChange } from "@/lib/content";
 import { lastEventChange } from "@/lib/events";
 import { site } from "@/lib/site";
 
-// Regenerated with the pages when an event is saved (and hourly); the admin is never listed.
+// Regenerated with the pages when the admin saves anything (and hourly); the admin is never listed.
 export const revalidate = 3600;
 const BUILT = new Date();
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const changed = await lastEventChange();
-  const lastModified = changed && changed > BUILT ? changed : BUILT;
+  const [shows, events, content] = await Promise.all([getShows(), lastEventChange(), lastContentChange()]);
+  const lastModified = new Date(Math.max(BUILT.getTime(), events?.getTime() ?? 0, content?.getTime() ?? 0));
   return [
     { url: `${site.url}/`, lastModified, changeFrequency: "weekly", priority: 1 },
     ...shows.map((s) => ({

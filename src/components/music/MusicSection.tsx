@@ -6,13 +6,12 @@ import { player } from "@/lib/audio/music";
 import { INSTRUMENTS, orchestra, type Instrument } from "@/lib/audio/orchestra";
 import { focus } from "./focus";
 import { audio } from "@/lib/audio/engine";
-import { shows, tracks } from "@/lib/data";
+import type { Track } from "@/lib/data";
 import type { Dictionary } from "@/i18n";
 import { useInView } from "@/lib/hooks/useInView";
 
 const Orchestra = dynamic(() => import("./Orchestra"), { ssr: false });
 
-const accentOf = (show: string) => shows.find((s) => s.slug === show)?.accent ?? "#5cf2ff";
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 
 function usePlayer() {
@@ -85,13 +84,23 @@ function Meter({ name }: { name: Instrument }) {
   );
 }
 
-export function MusicSection({ t }: { t: Dictionary["music"] }) {
+export interface ShowBrief {
+  slug: string;
+  title: string;
+  subtitle: string;
+  accent: string;
+}
+
+export function MusicSection({ t, tracks, shows }: { t: Dictionary["music"]; tracks: Track[]; shows: ShowBrief[] }) {
   const st = usePlayer();
+  const accentOf = (show: string | null) => shows.find((s) => s.slug === show)?.accent ?? "#5cf2ff";
+  const selected = st.track ?? tracks[0] ?? null;
+  useEffect(() => player.setTracks(tracks), [tracks]);
   const orch = useSyncExternalStore(orchestra.subscribe, orchestra.getState, orchestra.getState);
   const muted = useSyncExternalStore(audio.subscribe, () => audio.muted, () => true);
   const stageRef = useRef<HTMLDivElement>(null);
   const [mountStage, setMountStage] = useState(false);
-  const accent = accentOf(st.track.show);
+  const accent = accentOf(selected?.show ?? null);
   const stageVisible = useInView(stageRef, "15% 0px");
 
   useEffect(() => {
@@ -116,17 +125,18 @@ export function MusicSection({ t }: { t: Dictionary["music"] }) {
         </div>
 
         {/* player */}
+        {selected && (
         <div className="self-end lg:col-span-5 lg:col-start-8">
           <ol className="border-t border-deep">
             {tracks.map((tr, i) => {
-              const current = st.track.id === tr.id;
+              const current = selected.id === tr.id;
               const playing = current && st.playing;
               const show = shows.find((s) => s.slug === tr.show);
               return (
                 <li key={tr.id} className="border-b border-deep">
                   <button
                     type="button"
-                    onClick={() => player.toggle(tr.id)}
+                    onClick={() => player.toggle(tr)}
                     aria-pressed={playing}
                     className="group grid w-full grid-cols-[2.5rem_1fr_auto] items-center gap-4 py-5 text-left"
                   >
@@ -146,7 +156,7 @@ export function MusicSection({ t }: { t: Dictionary["music"] }) {
                         {tr.title}
                       </span>
                       <span className="mt-1.5 block font-mono text-[10px] uppercase tracking-[0.2em] text-frost">
-                        {String(i + 1).padStart(2, "0")} · {show?.title} {show?.subtitle} · {tr.note}
+                        {[String(i + 1).padStart(2, "0"), show && `${show.title} ${show.subtitle}`, tr.note].filter(Boolean).join(" · ")}
                       </span>
                     </span>
                     <span className="font-mono text-[11px] text-frost">{mmss(current ? st.duration : tr.duration)}</span>
@@ -166,7 +176,7 @@ export function MusicSection({ t }: { t: Dictionary["music"] }) {
                 step={0.1}
                 value={st.time}
                 onChange={(e) => player.seek(+e.target.value)}
-                aria-label={`${t.nowPlaying}: ${st.track.title}`}
+                aria-label={`${t.nowPlaying}: ${selected.title}`}
                 className="ice-range h-px flex-1"
                 style={{ "--p": `${(st.time / (st.duration || 1)) * 100}%` } as React.CSSProperties}
               />
@@ -174,6 +184,7 @@ export function MusicSection({ t }: { t: Dictionary["music"] }) {
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* the ice orchestra */}

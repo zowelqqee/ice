@@ -16,11 +16,11 @@ const fmt = (iso: string) =>
 
 function ListenButton({ track, accent, label }: { track: Track; accent: string; label: string }) {
   const st = useSyncExternalStore(player.subscribe, player.getState, player.getState);
-  const playing = st.playing && st.track.id === track.id;
+  const playing = st.playing && st.track?.id === track.id;
   return (
     <button
       type="button"
-      onClick={() => player.toggle(track.id)}
+      onClick={() => player.toggle(track)}
       aria-pressed={playing}
       className="group inline-flex items-center gap-4 border border-ice/60 py-3 pl-3 pr-6 transition-colors hover:border-[var(--a)]"
       style={{ "--a": accent } as React.CSSProperties}

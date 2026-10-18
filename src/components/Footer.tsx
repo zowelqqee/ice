@@ -1,9 +1,9 @@
 import Image from "next/image";
-import { site } from "@/lib/site";
 import { locales } from "@/i18n";
 import type { Dictionary } from "@/i18n";
+import type { SiteSettings } from "@/lib/content";
 
-export function Footer({ t }: { t: Dictionary["footer"] }) {
+export function Footer({ t, site }: { t: Dictionary["footer"]; site: SiteSettings }) {
   const year = new Date().getFullYear();
   return (
     <footer className="relative overflow-hidden border-t border-deep px-[var(--gutter)] pb-10 pt-24 md:pt-36" aria-labelledby="footer-title">
@@ -25,31 +25,47 @@ export function Footer({ t }: { t: Dictionary["footer"] }) {
 
       <div className="mt-16 grid gap-12 md:mt-24 md:grid-cols-12">
         <div className="md:col-span-5">
-          <p className="eyebrow mb-3">{t.booking}</p>
-          <a href={`mailto:${site.contact.booking}`} className="display break-all text-[8vw] italic leading-none text-ice hover:text-accent md:break-normal md:text-[3.4vw]">
-            {site.contact.booking}
-          </a>
+          {site.contact.booking && (
+            <>
+              <p className="eyebrow mb-3">{t.booking}</p>
+              <a href={`mailto:${site.contact.booking}`} className="display break-all text-[8vw] italic leading-none text-ice hover:text-accent md:break-normal md:text-[3.4vw]">
+                {site.contact.booking}
+              </a>
+            </>
+          )}
         </div>
         <div className="md:col-span-4">
-          <p className="eyebrow mb-3">{t.press}</p>
-          <a href={`mailto:${site.contact.press}`} className="display break-all text-[8vw] italic leading-none text-ice hover:text-accent md:break-normal md:text-[2.4vw]">
-            {site.contact.press}
-          </a>
+          {site.contact.press && (
+            <>
+              <p className="eyebrow mb-3">{t.press}</p>
+              <a href={`mailto:${site.contact.press}`} className="display break-all text-[8vw] italic leading-none text-ice hover:text-accent md:break-normal md:text-[2.4vw]">
+                {site.contact.press}
+              </a>
+            </>
+          )}
         </div>
         <div className="md:col-span-3">
-          <p className="eyebrow mb-3">{t.follow}</p>
-          <ul className="space-y-2">
-            <li>
-              <a href={site.social.youtube} target="_blank" rel="noopener noreferrer" className="group inline-flex items-center gap-3 text-[17px] text-ice hover:text-accent">
-                YouTube <span aria-hidden className="transition-transform group-hover:translate-x-1">↗</span>
-              </a>
-            </li>
-            <li>
-              <a href={site.social.instagram} target="_blank" rel="noopener noreferrer" className="group inline-flex items-center gap-3 text-[17px] text-ice hover:text-accent">
-                Instagram <span aria-hidden className="transition-transform group-hover:translate-x-1">↗</span>
-              </a>
-            </li>
-          </ul>
+          {(site.social.youtube || site.social.instagram) && (
+            <>
+              <p className="eyebrow mb-3">{t.follow}</p>
+              <ul className="space-y-2">
+                {site.social.youtube && (
+                  <li>
+                    <a href={site.social.youtube} target="_blank" rel="noopener noreferrer" className="group inline-flex items-center gap-3 text-[17px] text-ice hover:text-accent">
+                      YouTube <span aria-hidden className="transition-transform group-hover:translate-x-1">↗</span>
+                    </a>
+                  </li>
+                )}
+                {site.social.instagram && (
+                  <li>
+                    <a href={site.social.instagram} target="_blank" rel="noopener noreferrer" className="group inline-flex items-center gap-3 text-[17px] text-ice hover:text-accent">
+                      Instagram <span aria-hidden className="transition-transform group-hover:translate-x-1">↗</span>
+                    </a>
+                  </li>
+                )}
+              </ul>
+            </>
+          )}
         </div>
       </div>
 

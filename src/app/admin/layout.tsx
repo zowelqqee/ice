@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { currentAdmin } from "@/lib/auth";
 import { logoutAction } from "./actions";
+import { AdminNav } from "./AdminNav";
 
 export const metadata: Metadata = {
-  title: "Tour admin",
+  title: "Admin",
   robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
 };
 
@@ -18,7 +19,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
       <header className="sticky top-0 z-10 border-b border-[#1c2738] bg-[#070a10]/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <Link href="/admin" className="font-medium tracking-wide">
-            Musical on Ice <span className="text-[#8fa3b8]">· Tour events</span>
+            Musical on Ice <span className="text-[#8fa3b8]">· Admin</span>
           </Link>
           <nav className="flex items-center gap-4 text-sm text-[#8fa3b8]">
             <a href="/" target="_blank" rel="noopener" className="hover:text-white">
@@ -33,6 +34,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
             )}
           </nav>
         </div>
+        {user && <AdminNav />}
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6 pb-24">{children}</main>
     </div>

@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, gte, max } from "drizzle-orm";
-import { shows, tour as tourFile, type TourDate } from "@/lib/data";
+import { tour as tourFile, type TourDate } from "@/lib/data";
 import { COUNTRY_CODES } from "@/lib/countries";
 import { dbStatus, getDb } from "@/lib/db";
 import { EVENT_STATUSES, type EventRow, type EventStatus } from "@/lib/db/schema";
@@ -42,8 +42,8 @@ function text(form: FormData, key: string) {
   return String(form.get(key) ?? "").trim().replace(/\s+/g, " ");
 }
 
-/** Parse and check a submitted event form. */
-export function parseEvent(form: FormData): { ok: true; value: EventInput } | { ok: false; errors: FieldErrors } {
+/** Parse and check a submitted event form (`showSlugs`: the shows that exist). */
+export function parseEvent(form: FormData, showSlugs: string[]): { ok: true; value: EventInput } | { ok: false; errors: FieldErrors } {
   const errors: FieldErrors = {};
   const show = text(form, "show");
   const date = text(form, "date");
@@ -57,7 +57,7 @@ export function parseEvent(form: FormData): { ok: true; value: EventInput } | { 
   const latRaw = text(form, "lat");
   const lonRaw = text(form, "lon");
 
-  if (!shows.some((s) => s.slug === show)) errors.show = "Choose a show.";
+  if (!showSlugs.includes(show)) errors.show = "Choose a show.";
   if (!validDate(date)) errors.date = "Enter a valid date.";
   if (!TIME.test(time)) errors.time = "Enter a time as HH:MM (24 h).";
   for (const [key, value, label] of [

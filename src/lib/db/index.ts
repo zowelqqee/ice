@@ -5,7 +5,21 @@ import { count, sql } from "drizzle-orm";
 import { drizzle as drizzleLibsql, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
 import tourJson from "@/data/tour.json";
-import { CREATE_SQL, pgAttempts, pgEvents, sqliteAttempts, sqliteEvents } from "./schema";
+import showsJson from "@/data/shows.json";
+import musicJson from "@/data/music.json";
+import {
+  CREATE_SQL,
+  pgAttempts,
+  pgEvents,
+  pgSettings,
+  pgShows,
+  pgTracks,
+  sqliteAttempts,
+  sqliteEvents,
+  sqliteSettings,
+  sqliteShows,
+  sqliteTracks,
+} from "./schema";
 
 // Storage for the tour events, chosen by environment variables (no code change to switch):
 //   DB_DRIVER=sqlite   (default) DATABASE_URL=file:./data/musical-on-ice.db   a file on this server's disk
@@ -13,7 +27,8 @@ import { CREATE_SQL, pgAttempts, pgEvents, sqliteAttempts, sqliteEvents } from "
 //   DB_DRIVER=postgres DATABASE_URL=postgres://…                                 any Postgres
 // Without DATABASE_URL, the variables that Vercel's database integrations add are used:
 // POSTGRES_URL (Neon), then POSTGRES_URL_NON_POOLING; TURSO_DATABASE_URL and TURSO_AUTH_TOKEN.
-// Tables are created on first use and seeded from src/data/tour.json (as unpublished drafts).
+// Tables are created on first use and filled from the files in src/data/ (tour dates as
+// unpublished drafts; shows and music as they are on the site).
 
 export type Driver = "sqlite" | "libsql" | "postgres";
 
@@ -65,6 +80,9 @@ export interface DbHandle {
   db: Db;
   events: typeof sqliteEvents;
   attempts: typeof sqliteAttempts;
+  shows: typeof sqliteShows;
+  tracks: typeof sqliteTracks;
+  settings: typeof sqliteSettings;
   driver: Driver;
 }
 
@@ -89,37 +107,87 @@ async function open(): Promise<DbHandle> {
     const { drizzle } = await import("drizzle-orm/postgres-js");
     const db = drizzle(postgres(pgUrl(url), { max: 3, prepare: false })); // prepare off: works through poolers (PgBouncer)
     for (const q of CREATE_SQL.postgres) await db.execute(ddl(q));
-    h = { db: db as unknown as Db, events: pgEvents as unknown as typeof sqliteEvents, attempts: pgAttempts as unknown as typeof sqliteAttempts, driver };
+    h = {
+      db: db as unknown as Db,
+      events: pgEvents as unknown as typeof sqliteEvents,
+      attempts: pgAttempts as unknown as typeof sqliteAttempts,
+      shows: pgShows as unknown as typeof sqliteShows,
+      tracks: pgTracks as unknown as typeof sqliteTracks,
+      settings: pgSettings as unknown as typeof sqliteSettings,
+      driver,
+    };
   } else {
     if (driver === "sqlite" && url.startsWith("file:")) mkdirSync(dirname(url.slice(5)), { recursive: true });
     const db = drizzleLibsql(createClient({ url, authToken: token }));
     for (const q of CREATE_SQL.sqlite) await db.run(ddl(q));
-    h = { db, events: sqliteEvents, attempts: sqliteAttempts, driver };
+    h = { db, events: sqliteEvents, attempts: sqliteAttempts, shows: sqliteShows, tracks: sqliteTracks, settings: sqliteSettings, driver };
   }
   await seed(h);
   return h;
 }
 
-/** First run only: the dates from src/data/tour.json, as unpublished drafts to review and publish. */
-async function seed({ db, events }: DbHandle) {
-  const [{ n }] = await db.select({ n: count() }).from(events);
-  if (Number(n) > 0) return;
+/** First run of each table: the content of the files in src/data/. Tour dates come in as
+ *  unpublished drafts (they are placeholders); shows and music as they are on the site today. */
+async function seed({ db, events, shows, tracks }: DbHandle) {
   const now = Date.now();
-  const rows = tourJson.dates.map((d) => ({
-    id: d.id,
-    show: d.show,
-    date: d.date,
-    time: d.time,
-    city: d.city,
-    country: d.country,
-    venue: d.venue,
-    tickets: d.tickets,
-    status: "on_sale" as const,
-    published: false,
-    lat: d.lat,
-    lon: d.lon,
-    createdAt: now,
-    updatedAt: now,
-  }));
-  if (rows.length) await db.insert(events).values(rows);
+  const empty = async (table: typeof events | typeof shows | typeof tracks) =>
+    Number((await db.select({ n: count() }).from(table))[0].n) === 0;
+
+  if (await empty(events)) {
+    const rows = tourJson.dates.map((d) => ({
+      id: d.id,
+      show: d.show,
+      date: d.date,
+      time: d.time,
+      city: d.city,
+      country: d.country,
+      venue: d.venue,
+      tickets: d.tickets,
+      status: "on_sale" as const,
+      published: false,
+      lat: d.lat,
+      lon: d.lon,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    if (rows.length) await db.insert(events).values(rows);
+  }
+
+  if (await empty(shows)) {
+    const rows = showsJson.shows.map((s, i) => ({
+      slug: s.slug,
+      position: i,
+      published: true,
+      status: s.status as "touring" | "coming" | "tba",
+      title: s.title,
+      subtitle: s.subtitle,
+      logline: s.logline,
+      synopsis: JSON.stringify(s.synopsis),
+      highlights: JSON.stringify(s.highlights),
+      duration: s.facts.duration ?? "",
+      age: s.facts.age ?? "",
+      accent: s.accent,
+      media: JSON.stringify(s.media ?? {}),
+      track: s.track,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    if (rows.length) await db.insert(shows).values(rows);
+  }
+
+  if (await empty(tracks)) {
+    const rows = musicJson.tracks.map((t, i) => ({
+      id: t.id,
+      position: i,
+      published: true,
+      show: t.show,
+      title: t.title,
+      note: t.note,
+      src: t.src,
+      duration: t.duration,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    if (rows.length) await db.insert(tracks).values(rows);
+  }
 }

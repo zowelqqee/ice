@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { countryName } from "@/lib/countries";
-import { shows } from "@/lib/data";
+import { allShows } from "@/lib/content";
 import { cutoffDate, listEvents, STATUS_LABEL, type EventRow } from "@/lib/events";
 import { duplicateEventAction } from "./actions";
 import { DeleteButton } from "./DeleteButton";
@@ -10,10 +10,6 @@ import { btnGhost, btnPrimary } from "./styles";
 
 const DONE: Record<string, string> = { added: "Event added.", saved: "Changes saved.", deleted: "Event deleted." };
 
-const showTitle = (slug: string) => {
-  const s = shows.find((x) => x.slug === slug);
-  return s ? `${s.title}` : slug;
-};
 
 const when = (r: EventRow) =>
   new Date(`${r.date}T12:00:00Z`).toLocaleDateString("en-GB", {
@@ -40,7 +36,7 @@ function Badge({ v }: { v: Visibility }) {
   return <span className={`inline-block rounded border px-1.5 py-0.5 text-xs ${VIS[v].cls}`}>{VIS[v].text}</span>;
 }
 
-function Actions({ r }: { r: EventRow }) {
+function Actions({ r, showTitle }: { r: EventRow; showTitle: (slug: string) => string }) {
   return (
     <div className="flex flex-wrap gap-2">
       <Link href={`/admin/events/${r.id}`} className={btnGhost}>
@@ -69,7 +65,8 @@ export default async function EventsPage({
   const order = sp.order === "desc" ? "desc" : "asc";
   const view = sp.view === "all" ? "all" : "upcoming";
   const cutoff = cutoffDate();
-  const all = await listEvents(order);
+  const [all, shows] = await Promise.all([listEvents(order), allShows()]);
+  const showTitle = (slug: string) => shows.find((x) => x.slug === slug)?.title ?? slug;
   const rows = view === "all" ? all : all.filter((r) => r.date >= cutoff);
   const pastCount = all.length - all.filter((r) => r.date >= cutoff).length;
   const q = (o: string, v: string) => `/admin?order=${o}&view=${v}`;
@@ -78,7 +75,7 @@ export default async function EventsPage({
     <>
       {sp.done && DONE[sp.done] && <Flash>{DONE[sp.done]}</Flash>}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-medium">Events</h1>
+        <h1 className="text-xl font-medium">Tour dates</h1>
         <Link href="/admin/events/new" className={btnPrimary}>
           Add event
         </Link>
@@ -128,7 +125,7 @@ export default async function EventsPage({
                     {showTitle(r.show)} · <span className={STATUS_CLS[r.status]}>{STATUS_LABEL[r.status]}</span>
                     {!r.tickets && r.status === "on_sale" && <span className="text-[#5d7088]"> · no ticket link</span>}
                   </p>
-                  <Actions r={r} />
+                  <Actions r={r} showTitle={showTitle} />
                 </li>
               );
             })}
@@ -177,7 +174,7 @@ export default async function EventsPage({
                         <Badge v={v} />
                       </td>
                       <td className="px-3 py-3">
-                        <Actions r={r} />
+                        <Actions r={r} showTitle={showTitle} />
                       </td>
                     </tr>
                   );

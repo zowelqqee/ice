@@ -107,6 +107,19 @@ export async function requireAdmin() {
   return user;
 }
 
+/** For the admin's API routes (server actions check this themselves): the request must come
+ *  from a page of this site. Together with the same-site cookie this stops cross-site posts. */
+export function sameOrigin(req: Request) {
+  const origin = req.headers.get("origin");
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  if (!origin || !host) return false;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------- brute-force protection
 export async function clientAddress() {
   const h = await headers();

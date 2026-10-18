@@ -14,6 +14,7 @@ import {
   requireAdmin,
 } from "@/lib/auth";
 import { dbStatus } from "@/lib/db";
+import { allShows } from "@/lib/content";
 import { createEvent, deleteEvent, duplicateEvent, isEventId, parseEvent, updateEvent, type FieldErrors } from "@/lib/events";
 
 export type LoginState = { error?: string } | undefined;
@@ -53,7 +54,7 @@ export async function logoutAction() {
 export async function saveEventAction(id: string | null, _prev: EventFormState, form: FormData): Promise<EventFormState> {
   await requireAdmin();
   if (id !== null && !isEventId(id)) redirect("/admin");
-  const parsed = parseEvent(form);
+  const parsed = parseEvent(form, (await allShows()).map((s) => s.slug));
   if (!parsed.ok) {
     const values: Record<string, string> = {};
     for (const [k, v] of form) if (!k.startsWith("$") && typeof v === "string") values[k] = v;
