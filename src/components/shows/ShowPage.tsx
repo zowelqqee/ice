@@ -100,7 +100,7 @@ export function ShowPage({
               {show.title}
             </span>
             <span className="block overflow-hidden">
-              <span data-rise className="display block text-[9vw] italic text-frost md:text-[4.4vw]">
+              <span data-rise className="display block text-[9vw] text-frost md:text-[4.4vw]">
                 {show.subtitle}
               </span>
             </span>
@@ -111,7 +111,7 @@ export function ShowPage({
       {/* story */}
       <section className="grid gap-14 px-[var(--gutter)] py-24 md:grid-cols-12 md:py-36">
         <div className="md:col-span-7">
-          <p data-reveal className="display text-[10vw] italic leading-[0.95] md:text-[4.6vw]">
+          <p data-reveal className="display text-[10vw] leading-[0.95] md:text-[4.6vw]">
             {show.logline}
           </p>
           <div className="mt-12 space-y-6 md:columns-2 md:gap-10 md:space-y-0">

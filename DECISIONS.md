@@ -101,3 +101,21 @@ Nothing else was added, to keep the effects in proportion.
 
 ## D12. Orchestra plays real recordings, not frequency bands (supersedes D8)
 Each ice instrument plays its own part of an original 16-bar theme in D minor, sampled from VS Chamber Orchestra 2 Community Edition (Versilian Studios, CC0: no rights question). Eight instruments: violin, cello, harp, piano, flute, French horn, timpani, glockenspiel ("ice bells"). Parts are scheduled on the audio clock, so any combination stays in time; piano keys, glock bars, harp strings and timpani heads react to each note. The show soundtracks remain in the player above.
+
+## D13. Client review, October 2026: ice blue, upright type, the logo's lettering
+- **Title.** The first screen shows "Musical on Ice" in the logo's own letterforms: the shapes are
+  taken from the logo artwork (`src/components/hero/wordmark.ts`), one line above the skater,
+  sized so it never covers her.
+- **No italics anywhere.** Only the upright cut of Instrument Serif ships; `em`/`i` are upright and
+  emphasis is colour only (supersedes the italic part of D4).
+- **Not black.** The page is a deep ice blue (`--ink: #0b1d2e`), and so are the 3D scenes; contrast
+  for text stays AA.
+- **First screen.** The skater stands on a lit rink with her reflection and skate marks. Behind her,
+  real footage of a skater jumping across blue ice (D5-safe, see MATERIALS), small in a soft
+  window, with a blurred copy of it filling the rest of the frame edge to edge, on any screen.
+- **Shows strip.** The sideways travel happens once; after it, the section is an ordinary row and
+  scrolling back up is vertical.
+- **Ice orchestra.** The instruments are frosted ice (milky depth, uneven surface, frost, fractures,
+  bubbles) instead of clear glass, on a blue stage.
+- **Cursor.** On desktop the cursor is a conductor's baton made of ice; its tip is the hotspot and it
+  keeps the frost trail of D11 (fine pointers only, not under reduced motion).

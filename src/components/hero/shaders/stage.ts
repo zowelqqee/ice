@@ -29,17 +29,34 @@ void main() {
   vec3 V = normalize(cameraPosition - vWorld);
   float graze = 1.0 - clamp(V.y, 0.0, 1.0);
 
-  vec3 col = vec3(0.006, 0.011, 0.02);
+  // a lit rink: pale blue-grey ice, brighter where the light pools, glossy toward the horizon
+  vec3 col = vec3(0.07, 0.16, 0.24);
+  col += vec3(0.05, 0.1, 0.14) * smoothstep(1.5, 9.0, -vWorld.z + 2.0);
 
   // pool of the back light on the ice, behind the dancer
   vec2 q = (p - uPoolCenter.xz) * vec2(0.42, 0.75);
   float pool = exp(-dot(q, q) * 1.4);
-  col += vec3(0.16, 0.42, 0.55) * pool * 0.55;
+  col += vec3(0.3, 0.6, 0.78) * pool * 0.7;
   col += uRimColor * pow(pool, 6.0) * 0.35;
+  // the blade's own small circle of light, so she visibly stands on the surface
+  float under = exp(-r * r * 9.0);
+  col += vec3(0.55, 0.85, 1.0) * under * 0.32;
 
-  // long skating traces across the rink
-  float n = fbm(p * 0.35 + 3.0);
-  float traces = smoothstep(0.985, 1.0, sin(n * 70.0)) * 0.18;
+  // long skate arcs carved across the rink, and a matte frost in the surface
+  float traces = 0.0;
+  for (int i = 0; i < 9; i++) {
+    float fi = float(i);
+    vec2 c = vec2(sin(fi * 12.9898) * 7.0, -3.0 + cos(fi * 7.233) * 6.0);
+    float R = 2.2 + mod(fi * 3.7, 6.0);
+    vec2 d2 = p - c;
+    float d = abs(length(d2) - R);
+    float w = 0.004 + 0.003 * mod(fi, 3.0);
+    float arc = smoothstep(0.1, 0.7, sin(atan(d2.y, d2.x) + fi * 2.1));
+    traces += (1.0 - smoothstep(0.0, w, d)) * arc;
+  }
+  traces = min(traces, 1.0) * 0.42;
+  float frostTex = fbm(p * 2.2 + 7.0) * 0.6 + fbm(p * 13.0) * 0.4;
+  col += vec3(0.08, 0.13, 0.17) * frostTex;
   // tight scratches carved by the spin
   float ang = atan(p.y, p.x);
   float ring = sin(r * 260.0 + vnoise(vec2(ang * 3.0, r * 8.0)) * 6.0);
@@ -59,11 +76,12 @@ void main() {
   float glint = step(0.993, h) * dotMask * tw * (0.25 + pool * 2.5) * exp(-r * 0.12);
   col += vec3(0.9, 0.97, 1.0) * glint * 3.0;
 
-  // fresnel: grazing angles look glossier
-  col += vec3(0.03, 0.06, 0.09) * pow(graze, 6.0);
+  // fresnel: grazing angles mirror the bright arena behind
+  col += vec3(0.16, 0.3, 0.42) * pow(graze, 5.0);
 
-  float alpha = mix(0.52, 0.94, smoothstep(0.4, 3.5, r));
-  alpha = max(alpha, pool * 0.6);
+  // translucent near her (her reflection shows through), solid ice further out
+  float alpha = mix(0.62, 0.96, smoothstep(0.4, 3.5, r));
+  alpha = max(alpha, pool * 0.7);
   // the rink dissolves into the arena far away
   float far = 1.0 - smoothstep(9.0, 17.0, length(vWorld - vec3(0.0, 0.0, -2.0)));
   gl_FragColor = vec4(col, alpha * far);
@@ -126,16 +144,45 @@ precision highp float;
 uniform sampler2D uMap;
 uniform float uOpacity;
 uniform float uTime;
+uniform float uAspect;   // frame width / height
+uniform vec4 uWin;       // footage window: centre x, centre y, height (frame units), feather
 varying vec2 vUv;
+const float V = 16.0 / 9.0;
+
+// the footage scaled to cover the whole frame, zoomed a little and blurred: colour and motion only
+vec3 coverBlur(vec2 uv) {
+  vec2 size = uAspect > V ? vec2(1.0, uAspect / V) : vec2(V / uAspect, 1.0);
+  vec2 t = (uv - 0.5) / (size * 1.25) + 0.5;
+  vec3 c = vec3(0.0);
+  float r = 0.035;
+  for (int i = 0; i < 12; i++) {
+    float a = float(i) * 2.39996;             // golden-angle spiral
+    float k = sqrt((float(i) + 0.5) / 12.0);
+    c += texture2D(uMap, clamp(t + vec2(cos(a), sin(a)) * r * k * vec2(1.0, V), 0.001, 0.999)).rgb;
+  }
+  return c / 12.0;
+}
+
 void main() {
   vec2 uv = vUv;
-  vec3 c = texture2D(uMap, uv).rgb;
-  // match the site grade: crush toward ink, keep the cyan of the ice
+  // the real arena in a window: smaller than the frame, so the skaters there read as far away
+  vec2 wsize = vec2(uWin.z * V / uAspect, uWin.z);
+  vec2 tw = (uv - uWin.xy) / wsize + 0.5;
+  vec2 f = vec2(uWin.w) / vec2(1.0, V);
+  float m = smoothstep(0.0, f.x, tw.x) * smoothstep(1.0, 1.0 - f.x, tw.x) * smoothstep(0.0, f.y, tw.y) * smoothstep(1.0, 1.0 - f.y, tw.y);
+  vec3 sharp = texture2D(uMap, clamp(tw, 0.001, 0.999)).rgb;
+  vec3 bg = vec3(0.043, 0.114, 0.18);         // page colour (#0b1d2e)
+  vec3 haze = vec3(0.36, 0.62, 0.86);
+  // the blurred surround is mostly light and colour: haze takes the shapes out of it
+  vec3 c = mix(mix(coverBlur(uv), haze * 0.85, 0.32), sharp, m);
+
+  // kept bright and ice-blue, a step back from the glass skater: a cool haze, softer contrast
   float l = dot(c, vec3(0.299, 0.587, 0.114));
-  c = mix(vec3(l) * vec3(0.5, 0.78, 1.0), c, 0.35);
-  c = pow(c, vec3(1.35)) * 0.55;
-  vec2 e = smoothstep(vec2(0.0), vec2(0.18, 0.22), uv) * smoothstep(vec2(1.0), vec2(0.82, 0.7), uv);
-  gl_FragColor = vec4(c * uOpacity * e.x * e.y, 1.0);
+  c = mix(vec3(l) * vec3(0.62, 0.84, 1.06), c, 0.7);
+  c = mix(c, haze, 0.2 - 0.06 * m) * 0.8;
+  // the top edge melts into the page colour
+  c = mix(bg, c, smoothstep(1.0, 0.84, uv.y) * uOpacity);
+  gl_FragColor = vec4(c, 1.0);
 }
 `;
 

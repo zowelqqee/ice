@@ -97,8 +97,8 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
     >
       {/* two halves of the "ice sheet", split along the blade line on exit */}
       {/* the veil is thin in the middle: the skater is visible behind the Enter screen from the first frame */}
-      <div data-a className="absolute inset-0" style={{ clipPath: "polygon(0 0, 100% 0, 100% 38%, 0 62%)", background: "radial-gradient(ellipse 34% 48% at 50% 50%, rgba(4,6,11,0.28), rgba(4,6,11,0.9) 70%, rgba(4,6,11,0.97))" }} />
-      <div data-b className="absolute inset-0" style={{ clipPath: "polygon(0 62%, 100% 38%, 100% 100%, 0 100%)", background: "radial-gradient(ellipse 34% 48% at 50% 50%, rgba(4,6,11,0.28), rgba(4,6,11,0.9) 70%, rgba(4,6,11,0.97))" }} />
+      <div data-a className="absolute inset-0" style={{ clipPath: "polygon(0 0, 100% 0, 100% 38%, 0 62%)", background: "radial-gradient(ellipse 34% 48% at 50% 50%, rgba(11,29,46,0.28), rgba(11,29,46,0.9) 70%, rgba(11,29,46,0.97))" }} />
+      <div data-b className="absolute inset-0" style={{ clipPath: "polygon(0 62%, 100% 38%, 100% 100%, 0 100%)", background: "radial-gradient(ellipse 34% 48% at 50% 50%, rgba(11,29,46,0.28), rgba(11,29,46,0.9) 70%, rgba(11,29,46,0.97))" }} />
       <svg
         aria-hidden
         className="pointer-events-none absolute inset-0 h-full w-full"

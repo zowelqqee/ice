@@ -1,14 +1,15 @@
 @import "tailwindcss";
 
-/* Design tokens. The site is dark by nature (a rink at night); there is no light theme. */
+/* Design tokens. The site is dark (a rink at night) but not black: a deep ice blue, by the
+   client's choice, with enough contrast for white text. There is no light theme. */
 :root {
-  --ink: #04060b;        /* page: near-black blue */
-  --abyss: #070c16;      /* raised surfaces */
-  --deep: #0c1626;       /* lines, wells */
+  --ink: #0b1d2e;        /* page: deep ice blue */
+  --abyss: #10263a;      /* raised surfaces */
+  --deep: #183650;       /* lines, wells */
   --ice: #eaf6ff;        /* ice white: primary text */
-  --frost: #93a6bb;      /* secondary text */
-  --mist: #7d8fa5;       /* tertiary text (AA on ink) */
-  --rule: #22324a;       /* hairlines */
+  --frost: #a3b8cc;      /* secondary text */
+  --mist: #8a9fb6;       /* tertiary text (AA on ink) */
+  --rule: #27486a;       /* hairlines */
   --accent: #5cf2ff;     /* electric ice cyan (DECISIONS D1) */
   --accent-deep: #1aa6c4;
 
@@ -34,6 +35,18 @@
 
 html {
   background: var(--ink);
+  /* no faux italics or bold from the browser */
+  font-synthesis: none;
+}
+
+/* no italics anywhere on the site (client's rule); emphasis is colour only */
+em,
+i,
+cite,
+dfn,
+var,
+address {
+  font-style: normal;
 }
 
 body {
@@ -147,6 +160,18 @@ html.lenis body {
   border: 0;
   border-radius: 0;
   background: var(--accent);
+}
+
+/* the ice baton replaces the system cursor on desktop (FrostCursor); text fields keep a caret */
+html.baton-cursor,
+html.baton-cursor * {
+  cursor: none !important;
+}
+html.baton-cursor :is(input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), textarea, select, [contenteditable="true"]) {
+  cursor: auto !important;
+}
+html[data-still] [data-baton] {
+  display: none !important;
 }
 
 /* poster capture (?still): only the 3D scene is visible */

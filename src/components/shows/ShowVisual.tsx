@@ -73,7 +73,7 @@ function Unreleased({ show, className }: { show: Show; className: string }) {
       </svg>
       {motif === "mirror" && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="display text-[9vw] italic text-ice/10 [transform:scaleX(-1)]">Alice</span>
+          <span className="display text-[9vw] text-ice/10 [transform:scaleX(-1)]">Alice</span>
         </div>
       )}
       {motif === "rings" && (

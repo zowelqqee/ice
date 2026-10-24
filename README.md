@@ -257,7 +257,7 @@ src/components/hero/        hero DOM + canvas; shaders/ (skater SDF, skirt, ice,
 src/components/shows/       horizontal journey, show visual, show page
 src/components/tour/        server section (map projection, JSON-LD) + client view
 src/components/music/       player UI, ice orchestra (procedural instruments, ice/crack material)
-src/components/shell/       transitions (blade cut), frost cursor, providers
+src/components/shell/       transitions (blade cut), ice baton cursor with frost trail, providers
 src/components/ui/          IceButton (cracks on hover, shatters on press)
 src/lib/audio/              engine.ts (single Web Audio graph), music.ts (show-track player), orchestra.ts (sampler + score)
 src/lib/                    spin state, quality tiers, data accessors, map projection
@@ -288,7 +288,7 @@ Measured on 2026-10-15:
 Real-device testing on mid-range phones is still to do.
 
 **Accessibility.**
-- `prefers-reduced-motion`: static figure, no scroll spin, no pin, native horizontal scroll in Shows, stills instead of loops, no frost cursor.
+- `prefers-reduced-motion`: static figure, no scroll spin, no pin, native horizontal scroll in Shows, stills instead of loops, no ice baton cursor (the system cursor stays).
 - Skip link.
 - Every interactive element is keyboard-reachable:
   - the hero responds to the arrow keys;

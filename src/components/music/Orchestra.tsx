@@ -129,11 +129,14 @@ function NoteParts({ name, parts, active }: { name: Instrument; parts: NotePart[
           const black = p.kind === "key" && [1, 3, 6, 8, 10].includes(p.midi % 12);
           mat = new THREE.MeshPhysicalMaterial({
             color: black ? new THREE.Color("#7fa6b8") : new THREE.Color("#e6f8ff"),
-            roughness: 0.12,
-            clearcoat: 1,
+            roughness: 0.32, // frosted, like the instrument bodies
+            clearcoat: 0.6,
+            clearcoatRoughness: 0.22,
+            sheen: 0.6,
+            sheenColor: new THREE.Color("#d4f1ff"),
             envMapIntensity: 2.2,
             transparent: true,
-            opacity: 0.8,
+            opacity: 0.86,
             emissive: new THREE.Color("#5cf2ff"),
             emissiveIntensity: 0,
           });
@@ -378,8 +381,9 @@ function Stage({ q }: { q: Quality }) {
 
   return (
     <>
-      <color attach="background" args={["#04060b"]} />
-      <fog attach="fog" args={["#04060b", 9, 17]} />
+      {/* a cold blue hall, not a black void */}
+      <color attach="background" args={["#0f2c44"]} />
+      <fog attach="fog" args={["#0f2c44", 9, 18]} />
       <Environment resolution={256} frames={1}>
         <Lightformer form="rect" intensity={4} position={[0, 4.5, -5]} scale={[16, 1.6, 1]} color="#bff6ff" />
         <Lightformer form="rect" intensity={2.2} position={[-6, 2, 1]} rotation-y={Math.PI / 2} scale={[8, 1.2, 1]} color="#5cf2ff" />
@@ -411,7 +415,7 @@ function Stage({ q }: { q: Quality }) {
       <mesh rotation-x={-Math.PI / 2} position={[span / 2, 0, 0]}>
         <planeGeometry args={[40 + span, 40]} />
         {cheap ? (
-          <meshStandardMaterial color="#05080f" roughness={0.35} metalness={0.6} />
+          <meshStandardMaterial color="#163b57" roughness={0.3} metalness={0.4} />
         ) : (
           <MeshReflectorMaterial
             resolution={q.tier === "high" ? 512 : 256}
@@ -422,7 +426,7 @@ function Stage({ q }: { q: Quality }) {
             depthScale={0.6}
             minDepthThreshold={0.5}
             maxDepthThreshold={1.4}
-            color="#060a12"
+            color="#163b57"
             metalness={0.7}
             mirror={0.6}
           />
@@ -433,7 +437,7 @@ function Stage({ q }: { q: Quality }) {
         <Bloom mipmapBlur intensity={0.75} luminanceThreshold={0.82} radius={0.5} />
         <ToneMapping mode={ToneMappingMode.NEUTRAL} />
         <SMAA />
-        <Vignette offset={0.3} darkness={0.75} />
+        <Vignette offset={0.3} darkness={0.45} />
       </EffectComposer>
     </>
   );

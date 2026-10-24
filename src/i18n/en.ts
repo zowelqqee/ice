@@ -15,8 +15,6 @@ const en = {
   },
   sound: { mute: "Mute sound", unmute: "Turn sound on" },
   hero: {
-    line1: "Musical",
-    line2: "on Ice",
     tagline: "Eight stories. One sheet of ice. Original scores, performed live.",
     mid: "Music you can see.",
     scroll: "Scroll to spin",

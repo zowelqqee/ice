@@ -61,7 +61,7 @@ question (see README).
 
 | Asset | Source shot | Why it is safe |
 |---|---|---|
-| Hero plate | Aladdin master 8.56–9.36 s, wide arena | performers tiny, graded and softened |
+| Hero plate | Aladdin master 39.84–41.40 s, a run of jumps over the blue "water" projection (client: active skating, ice-blue, full width) | face under a headdress and motion-blurred; corner bug and audience cropped; shown small in a soft window with a blurred copy around it |
 | Aladdin card / page | twirl 53.72 s (cropped below the shoulders) / gold wide arena 56.38 s | no faces |
 | Dracula card / page / extra | cape and legs 13.76 s (cropped low) / lone skater on the gothic street 19.36 s / red aerial silk 15.14 s | no faces, no subtitles |
 | Anastasia card / page | ballroom wide 0.70 s | figures tiny |

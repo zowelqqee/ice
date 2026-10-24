@@ -70,7 +70,7 @@ export function Header({ t, tSound }: { t: Dictionary["nav"]; tSound: Dictionary
 
   return (
     <>
-      <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex items-center justify-between px-[var(--gutter)] pt-5 mix-blend-difference">
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex items-center justify-between px-[var(--gutter)] pt-5 pb-6 [background:linear-gradient(to_bottom,rgba(11,29,46,0.55),rgba(11,29,46,0))]">
         <BladeLink href="/" className="pointer-events-auto" aria-label="Musical on Ice, home">
           <Image src="/brand/logo-white.webp" alt="" width={1323} height={1005} className="h-auto w-[64px] sm:w-[76px]" priority />
         </BladeLink>
@@ -124,7 +124,7 @@ export function Header({ t, tSound }: { t: Dictionary["nav"]; tSound: Dictionary
             tabIndex={open ? 0 : -1}
             onClick={(e) => onAnchor(e, href)}
             className="display block py-1 text-[17vw] text-ice"
-            style={{ transitionDelay: `${i * 60}ms`, fontStyle: i % 2 ? "italic" : "normal" }}
+            style={{ transitionDelay: `${i * 60}ms` }}
           >
             {label}
           </Link>

@@ -117,7 +117,13 @@ export function Plate({ src, poster }: { src: { webm: string; mp4: string }; pos
         vertexShader: worldVertex,
         fragmentShader: plateFragment,
         depthWrite: false,
-        uniforms: { uMap: { value: null as THREE.Texture | null }, uOpacity: { value: 0.0 }, uTime: { value: 0 } },
+        uniforms: {
+          uMap: { value: null as THREE.Texture | null },
+          uOpacity: { value: 0.0 },
+          uTime: { value: 0 },
+          uAspect: { value: 16 / 9 },
+          uWin: { value: new THREE.Vector4(0.5, 0.64, 0.6, 0.22) },
+        },
       }),
     [],
   );
@@ -157,24 +163,33 @@ export function Plate({ src, poster }: { src: { webm: string; mp4: string }; pos
   }, [mat, src.webm, src.mp4, poster, invalidate]);
 
   const ref = useRef<THREE.Mesh>(null);
+  const dir = useMemo(() => new THREE.Vector3(), []);
   useFrame((_, dt) => {
     const o = mat.uniforms.uOpacity;
     o.value += ((mat.uniforms.uMap.value ? 1 : 0) - o.value) * (1 - Math.exp(-dt * 1.5));
-    // keep the plate filling the frame from wherever the camera is
+    // keep the plate filling the frame from wherever the camera is, however it tilts: it faces
+    // the camera at a fixed distance behind everything (the Director has already moved the camera
+    // this frame: it is mounted first)
     const m = ref.current;
     if (!m) return;
     const cam = camera as THREE.PerspectiveCamera;
-    const dist = Math.abs(cam.position.z - m.position.z);
+    const dist = 22;
+    cam.getWorldDirection(dir);
+    m.position.copy(cam.position).addScaledVector(dir, dist);
+    m.quaternion.copy(cam.quaternion);
     const fh = 2 * dist * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
-    // a distant window onto the real arena: narrower than the frame, edges dissolve into black
-    const w = Math.max(fh * cam.aspect * 0.78, fh * 0.95);
-    m.scale.set(w, w * (9 / 16), 1);
-    // the plate's rink (58% down the frame) lines up just above our horizon
-    m.position.y = cam.position.y + 0.08 * w * (9 / 16) + 0.25;
+    // the plate fills the frame edge to edge on any screen (no black sides); the shader puts the
+    // footage in a soft window, smaller on phones, with a blurred copy of it all around
+    m.scale.set(fh * cam.aspect * 1.02, fh * 1.02, 1);
+    mat.uniforms.uAspect.value = cam.aspect;
+    const portrait = cam.aspect < 1;
+    // window bottom sits a little below the horizon, so the real rink runs on behind ours
+    const h = portrait ? 0.32 : 0.42;
+    mat.uniforms.uWin.value.set(0.5, (portrait ? 0.4 : 0.33) + h / 2, h, portrait ? 0.2 : 0.24);
   });
 
   return (
-    <mesh ref={ref} position={[0, 2, -18]} material={mat} renderOrder={-1}>
+    <mesh ref={ref} position={[0, 2, -18]} material={mat} renderOrder={-1} frustumCulled={false}>
       <planeGeometry args={[1, 1]} />
     </mesh>
   );

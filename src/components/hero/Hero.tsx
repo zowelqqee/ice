@@ -9,22 +9,25 @@ import { heroScroll } from "@/lib/pointer";
 import { useInView } from "@/lib/hooks/useInView";
 import type { Dictionary } from "@/i18n";
 import { audio } from "@/lib/audio/engine";
+import { WORDMARK_LETTERS, WORDMARK_VIEWBOX } from "./wordmark";
 
 const HeroCanvas = dynamic(() => import("./HeroCanvas"), { ssr: false });
 
 const TURNS_PER_HERO = 4.5;
 // bump when the poster frames are re-rendered (they keep their names)
-const POSTER_V = "?v=5";
+const POSTER_V = "?v=6";
 
-function Letters({ text, className, line }: { text: string; className?: string; line: 1 | 2 }) {
+/** The title in the logo's own letterforms (vector shapes from the logo artwork), one group per
+ *  letter so the scroll can pull them apart. */
+function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={className} aria-hidden {...{ [`data-line${line}`]: "" }}>
-      {[...text].map((c, i) => (
-        <span key={i} data-l className="inline-block will-change-transform" style={{ whiteSpace: "pre" }}>
-          {c}
-        </span>
+    <svg data-wordmark viewBox={WORDMARK_VIEWBOX} className={className} aria-hidden focusable="false">
+      {WORDMARK_LETTERS.map((d, i) => (
+        <g key={i} data-l>
+          <path d={d} fill="currentColor" />
+        </g>
       ))}
-    </span>
+    </svg>
   );
 }
 
@@ -76,8 +79,8 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
       const tl = gsap.timeline({
         scrollTrigger: { trigger: el, start: "top top", end: "bottom bottom", scrub: 0.6 },
       });
-      tl.to("[data-line1] [data-l]", { yPercent: -40, xPercent: (i) => (i - 3) * 22, opacity: 0.0, stagger: 0.015, duration: 0.4, ease: "power2.in" }, 0)
-        .to("[data-line2] [data-l]", { yPercent: 30, xPercent: (i) => (i - 2) * 26, opacity: 0, stagger: 0.015, duration: 0.4, ease: "power2.in" }, 0.04)
+      // letters drift apart and up, in the logo's units (the lettering is ~2230 units wide)
+      tl.to("[data-wordmark] [data-l]", { y: -220, x: (i) => (i - 5.5) * 70, opacity: 0, stagger: 0.012, duration: 0.42, ease: "power2.in" }, 0)
         .to("[data-tagline]", { opacity: 0, y: -30, duration: 0.25, ease: "none" }, 0)
         .fromTo("[data-mid]", { opacity: 0, y: 40 }, { opacity: 1, y: 0, ease: "power2.out" }, 0.5)
         .to("[data-mid]", { opacity: 0, y: -40, ease: "power2.in" }, 0.82)
@@ -156,19 +159,10 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
           {boot && <HeroCanvas onReady={ready} active={visible} />}
         </div>
 
-        {/* title: sits over the scene and inverts against the light */}
-        <h1 data-hero-ui className="pointer-events-none absolute inset-0 select-none mix-blend-difference">
+        {/* title: the logo's lettering, one line above the skater (never over her) */}
+        <h1 data-hero-ui className="pointer-events-none absolute inset-x-0 top-[12svh] flex select-none justify-center md:top-[11.5vh]">
           <span className="sr-only">Musical on Ice</span>
-          <Letters
-            line={1}
-            text={t.line1}
-            className="display absolute left-[var(--gutter)] top-[13svh] block text-[24vw] text-ice md:top-[11vh] md:text-[17.5vw]"
-          />
-          <Letters
-            line={2}
-            text={t.line2}
-            className="display absolute bottom-[17svh] right-[var(--gutter)] block text-[26vw] italic text-ice md:bottom-[7vh] md:text-[19vw]"
-          />
+          <Wordmark className="block h-auto w-[84vw] overflow-visible text-ice drop-shadow-[0_0_22px_rgba(92,242,255,0.28)] md:w-[clamp(340px,40vw,700px)]" />
         </h1>
 
         <p
@@ -182,7 +176,7 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
         <p
           data-hero-ui
           data-mid
-          className="display pointer-events-none absolute inset-x-[var(--gutter)] top-[18svh] text-center text-[11vw] italic text-ice opacity-0 mix-blend-difference md:top-[16vh] md:text-[6.5vw]"
+          className="display pointer-events-none absolute inset-x-[var(--gutter)] top-[18svh] text-center text-[11vw] text-ice opacity-0 drop-shadow-[0_2px_16px_rgba(6,20,34,0.75)] md:top-[16vh] md:text-[6.5vw]"
           aria-hidden
         >
           {t.mid}

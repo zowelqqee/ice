@@ -28,7 +28,7 @@ export function Footer({ t, site }: { t: Dictionary["footer"]; site: SiteSetting
           {site.contact.booking && (
             <>
               <p className="eyebrow mb-3">{t.booking}</p>
-              <a href={`mailto:${site.contact.booking}`} className="display break-all text-[8vw] italic leading-none text-ice hover:text-accent md:break-normal md:text-[3.4vw]">
+              <a href={`mailto:${site.contact.booking}`} className="display break-all text-[8vw] leading-none text-ice hover:text-accent md:break-normal md:text-[3.4vw]">
                 {site.contact.booking}
               </a>
             </>
@@ -38,7 +38,7 @@ export function Footer({ t, site }: { t: Dictionary["footer"]; site: SiteSetting
           {site.contact.press && (
             <>
               <p className="eyebrow mb-3">{t.press}</p>
-              <a href={`mailto:${site.contact.press}`} className="display break-all text-[8vw] italic leading-none text-ice hover:text-accent md:break-normal md:text-[2.4vw]">
+              <a href={`mailto:${site.contact.press}`} className="display break-all text-[8vw] leading-none text-ice hover:text-accent md:break-normal md:text-[2.4vw]">
                 {site.contact.press}
               </a>
             </>

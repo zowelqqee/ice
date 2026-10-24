@@ -17,6 +17,8 @@ import { audio } from "@/lib/audio/engine";
 import { detectQuality, lower, presets, type Quality } from "@/lib/quality";
 
 const PLATE = { webm: "/media/hero/arena-plate.webm", mp4: "/media/hero/arena-plate.mp4" };
+// the page colour (--ink): the scene is a deep ice blue, never black
+const SCENE_BG = "#0b1d2e";
 const POSTER = "/media/hero/arena-plate.jpg";
 
 function Director({ stage, dpr }: { stage: StageUniforms; dpr: number }) {
@@ -41,7 +43,7 @@ function Director({ stage, dpr }: { stage: StageUniforms; dpr: number }) {
     const aspect = size.width / size.height;
     const tanHalf = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
     const fitW = 2.1 / (2 * tanHalf * aspect);
-    const baseZ = THREE.MathUtils.clamp(Math.max(4.6, fitW), 4.6, 6.6);
+    const baseZ = THREE.MathUtils.clamp(Math.max(aspect > 1 ? 5.0 : 4.6, fitW), 4.6, 6.6);
     const p = heroScroll.progress;
     const e = p * p * (3 - 2 * p);
     pointer.sx += (pointer.x - pointer.sx) * (1 - Math.exp(-dt * 2.5));
@@ -56,7 +58,7 @@ function Director({ stage, dpr }: { stage: StageUniforms; dpr: number }) {
     const y = THREE.MathUtils.lerp(1.05, 0.32, e) - pointer.sy * 0.12;
     const x = pointer.sx * 0.35;
     cam.position.set(x, y, z);
-    look.set(0, THREE.MathUtils.lerp(1.02, 1.12, e), 0);
+    look.set(0, THREE.MathUtils.lerp(aspect > 1 ? 1.14 : 1.02, 1.12, e), 0);
     cam.lookAt(look);
   });
   return null;
@@ -82,7 +84,7 @@ function Effects({ q }: { q: Quality }) {
         <></>
       )}
       <Noise blendFunction={BlendFunction.OVERLAY} opacity={0.05} />
-      <Vignette offset={0.28} darkness={0.82} />
+      <Vignette offset={0.32} darkness={0.42} />
     </EffectComposer>
   );
 }
@@ -166,12 +168,12 @@ export default function HeroCanvas({ onReady, active = true }: { onReady?: () =>
       camera={{ fov: 35, near: 0.1, far: 60, position: [0, 1.05, 5] }}
       frameloop={spin.reduced ? "demand" : active ? "always" : "never"}
       onCreated={({ gl, scene }) => {
-        gl.setClearColor("#04060b", 1);
+        gl.setClearColor(SCENE_BG, 1);
         // shaders output display-referred colour; keep the pipeline linear end to end so the
         // composer path and the no-post path look identical
         gl.outputColorSpace = THREE.LinearSRGBColorSpace;
         gl.toneMapping = THREE.NoToneMapping;
-        scene.background = new THREE.Color("#04060b");
+        scene.background = new THREE.Color(SCENE_BG);
       }}
     >
       <PerformanceMonitor

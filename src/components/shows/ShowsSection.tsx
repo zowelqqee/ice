@@ -6,6 +6,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { Show } from "@/lib/data";
 import { ShowVisual } from "./ShowVisual";
 import { BladeLink } from "../shell/Transition";
+import { useLenis } from "../SmoothScroll";
 import type { Dictionary } from "@/i18n";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -45,7 +46,7 @@ function Panel({ show, i, t }: { show: Show; i: number; t: Dictionary["shows"] }
         <h3 id={`show-${show.slug}`} className="display text-[16vw] mix-blend-difference md:text-[8.4vw]">
           {show.title}
         </h3>
-        <p className="display -mt-1 text-[7vw] italic text-frost md:text-[2.8vw]">{show.subtitle}</p>
+        <p className="display -mt-1 text-[7vw] text-frost md:text-[2.8vw]">{show.subtitle}</p>
         <p className="mt-4 max-w-[34ch] text-[15px] leading-snug text-frost md:max-w-[30ch]">{show.logline}</p>
         <p className="mt-6 inline-flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.24em] text-ice">
           {t.open}
@@ -60,6 +61,11 @@ export function ShowsSection({ t, shows }: { t: Dictionary["shows"]; shows: Show
   const section = useRef<HTMLElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const progress = useRef<HTMLSpanElement>(null);
+  const lenis = useLenis();
+  const lenisRef = useRef(lenis);
+  useEffect(() => {
+    lenisRef.current = lenis;
+  }, [lenis]);
 
   useEffect(() => {
     const el = section.current;
@@ -68,7 +74,36 @@ export function ShowsSection({ t, shows }: { t: Dictionary["shows"]; shows: Show
     const mm = gsap.matchMedia();
     mm.add("(min-width: 768px) and (prefers-reduced-motion: no-preference)", () => {
       const distance = () => tr.scrollWidth - window.innerWidth;
-      const move = gsap.to(tr, {
+      const extras: (gsap.core.Tween | ScrollTrigger)[] = [];
+      let released = false;
+      // filled in below; the callbacks may fire while the tween is still being created
+      const ref: { move?: gsap.core.Tween } = {};
+      // The sideways travel happens once. After the visitor has scrolled through all the shows,
+      // the section stops being pinned: the strip stays where it ended, as an ordinary row that
+      // can be swiped sideways, and scrolling back up is plain vertical scrolling.
+      const release = () => {
+        const move = ref.move;
+        if (released || !move?.scrollTrigger) return;
+        released = true;
+        const st = move.scrollTrigger;
+        const pinned = st.end - st.start;
+        const y = window.scrollY;
+        move.progress(1);
+        const x = distance();
+        extras.forEach((e) => e.kill());
+        st.kill(true);
+        move.kill();
+        gsap.set(tr, { clearProps: "transform" });
+        tr.style.overflowX = "auto";
+        tr.scrollLeft = x;
+        if (progress.current) progress.current.style.transform = "scaleX(1)";
+        // the page is now shorter by the pinned distance: keep the same content in view
+        const target = Math.max(0, y - pinned);
+        if (lenisRef.current) lenisRef.current.scrollTo(target, { immediate: true, force: true });
+        else window.scrollTo(0, target);
+        ScrollTrigger.refresh();
+      };
+      const move = (ref.move = gsap.to(tr, {
         x: () => -distance(),
         ease: "none",
         scrollTrigger: {
@@ -82,24 +117,32 @@ export function ShowsSection({ t, shows }: { t: Dictionary["shows"]; shows: Show
           onUpdate: (self) => {
             if (progress.current) progress.current.style.transform = `scaleX(${self.progress})`;
           },
+          onLeave: () => release(),
         },
-      });
+      }));
       // footage drifts against the travel; the section light takes the colour of the show in front
       gsap.utils.toArray<HTMLElement>("[data-panel]", el).forEach((panel) => {
         const media = panel.querySelector("[data-parallax]");
         if (media)
-          gsap.fromTo(media, { xPercent: 7 }, {
-            xPercent: -7,
-            ease: "none",
-            scrollTrigger: { trigger: panel, containerAnimation: move, start: "left right", end: "right left", scrub: true },
-          });
-        ScrollTrigger.create({
+          extras.push(
+            gsap.fromTo(media, { xPercent: 7 }, {
+              xPercent: -7,
+              ease: "none",
+              scrollTrigger: { trigger: panel, containerAnimation: move, start: "left right", end: "right left", scrub: true },
+            }),
+          );
+        extras.push(ScrollTrigger.create({
           trigger: panel,
           containerAnimation: move,
           start: "left 60%",
           end: "right 60%",
           onToggle: (self) => self.isActive && el.style.setProperty("--glow", panel.dataset.accent ?? "#5cf2ff"),
-        });
+        }));
+      });
+      // arriving with the page already scrolled past the shows (back button, a #tour link): no travel
+      requestAnimationFrame(() => {
+        const st = move.scrollTrigger;
+        if (st && st.scroll() > st.end) release();
       });
     });
     return () => mm.revert();
