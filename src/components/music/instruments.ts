@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
 // Procedural instruments carved from ice. Each builder returns:
 //   ice      merged geometry of the ice body
@@ -26,6 +27,24 @@ export interface InstrumentModel {
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
+/** A block of ice: never a sharp CG box; its edges are rounded like carved, slightly melted ice. */
+const Box = (w: number, h: number, d: number) => new RoundedBoxGeometry(w, h, d, 3, Math.min(w, h, d) * 0.32);
+
+/** Hand-carved irregularity: every vertex moves a little by a smooth 3D noise of its position (the
+ *  same shift for the same point, so separate pieces never open at their seams). */
+function carve(g: THREE.BufferGeometry, amp = 0.0028, freq = 7) {
+  const p = g.attributes.position as THREE.BufferAttribute;
+  const n = (x: number, y: number, z: number) =>
+    Math.sin(x * freq + Math.sin(y * freq * 1.7) * 1.3) * Math.cos(z * freq * 1.3 + Math.sin(x * freq * 0.7)) * 0.6 +
+    Math.sin((x + y + z) * freq * 2.9) * 0.4;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    p.setXYZ(i, x + n(y, z, x) * amp, y + n(z, x, y) * amp * 0.6, z + n(x, y, z) * amp);
+  }
+  p.needsUpdate = true;
+  return g;
+}
+
 export function merge(geos: THREE.BufferGeometry[]) {
   const clean = geos.map((g) => {
     const n = g.index ? g.toNonIndexed() : g;
@@ -44,7 +63,7 @@ function place(g: THREE.BufferGeometry, pos: THREE.Vector3, rot?: THREE.Euler, s
 }
 
 /** Cylinder between two points. */
-function rod(a: THREE.Vector3, b: THREE.Vector3, r0: number, r1 = r0, seg = 10) {
+function rod(a: THREE.Vector3, b: THREE.Vector3, r0: number, r1 = r0, seg = 24) {
   const len = a.distanceTo(b);
   const g = new THREE.CylinderGeometry(r1, r0, len, seg, 1);
   g.translate(0, len / 2, 0);
@@ -190,17 +209,17 @@ function violinFamily(scale: number, rib: number, arch: number, neckLen: number,
   const { ice: body, glow } = violinBody(rib, arch);
   const top = 0.5;
   const geos: THREE.BufferGeometry[] = [body];
-  geos.push(place(new THREE.BoxGeometry(0.05, neckLen, 0.04), V(0, top + neckLen / 2, rib / 2 + 0.012)));
+  geos.push(place(Box(0.05, neckLen, 0.04), V(0, top + neckLen / 2, rib / 2 + 0.012)));
   // fingerboard, narrowing toward the nut
-  const board = new THREE.BoxGeometry(0.06, neckLen + 0.24, 0.012);
+  const board = Box(0.06, neckLen + 0.24, 0.012);
   const bp = board.attributes.position as THREE.BufferAttribute;
   for (let i = 0; i < bp.count; i++) bp.setX(i, bp.getX(i) * (0.72 + 0.28 * (0.5 - bp.getY(i) / (neckLen + 0.24))));
   board.computeVertexNormals();
   geos.push(place(board, V(0, top + neckLen / 2 - 0.12, rib / 2 + arch * 0.6 + 0.022)));
-  geos.push(place(new THREE.BoxGeometry(0.05, 0.006, 0.012), V(0, top + neckLen, rib / 2 + arch * 0.6 + 0.03)));
+  geos.push(place(Box(0.05, 0.006, 0.012), V(0, top + neckLen, rib / 2 + arch * 0.6 + 0.03)));
   // pegbox, scroll, pegs
   const boxH = 0.13;
-  geos.push(place(new THREE.BoxGeometry(0.042, boxH, 0.045), V(0, top + neckLen + boxH / 2, rib / 2 + 0.01)));
+  geos.push(place(Box(0.042, boxH, 0.045), V(0, top + neckLen + boxH / 2, rib / 2 + 0.01)));
   geos.push(scroll(V(0, top + neckLen + boxH, rib / 2 + 0.012), 0.032));
   for (let k = 0; k < 4; k++) {
     const y = top + neckLen + 0.025 + k * 0.03;
@@ -248,9 +267,9 @@ function violinFamily(scale: number, rib: number, arch: number, neckLen: number,
   const stick: THREE.Vector3[] = [];
   for (let i = 0; i <= 10; i++) stick.push(V(0, (i / 10) * bowLen, -0.012 * Math.sin(Math.PI * (i / 10))));
   bowGeos.push(tube(stick, (t) => 0.0042 - t * 0.0016, 60, 8));
-  bowGeos.push(place(new THREE.BoxGeometry(0.008, bowLen * 0.93, 0.0015), V(0, bowLen * 0.505, 0.014)));
-  bowGeos.push(place(new THREE.BoxGeometry(0.014, 0.05, 0.022), V(0, 0.04, 0.008)));
-  bowGeos.push(place(new THREE.BoxGeometry(0.008, 0.022, 0.02), V(0, bowLen - 0.006, 0.006)));
+  bowGeos.push(place(Box(0.008, bowLen * 0.93, 0.0015), V(0, bowLen * 0.505, 0.014)));
+  bowGeos.push(place(Box(0.014, 0.05, 0.022), V(0, 0.04, 0.008)));
+  bowGeos.push(place(Box(0.008, 0.022, 0.02), V(0, bowLen - 0.006, 0.006)));
 
   const s = scale;
   const all = merge(geos).scale(s, s, s);
@@ -332,11 +351,11 @@ export function piano(): InstrumentModel {
   lid.applyMatrix4(new THREE.Matrix4().makeTranslation(-0.74, bottom + caseH + 0.012, 1.1).multiply(new THREE.Matrix4().makeRotationZ(0.68)));
   geos.push(lid);
   geos.push(rod(V(0.42, bottom + caseH, 0.15), V(0.18, bottom + caseH + 0.62, 0.15), 0.008, 0.007, 8));
-  geos.push(place(new THREE.BoxGeometry(0.8, 0.28, 0.012), V(-0.02, bottom + caseH + 0.15, 0.82), new THREE.Euler(-0.32, 0, 0)));
+  geos.push(place(Box(0.8, 0.28, 0.012), V(-0.02, bottom + caseH + 0.15, 0.82), new THREE.Euler(-0.32, 0, 0)));
   // keybed, key slip, cheek blocks
-  geos.push(place(new THREE.BoxGeometry(1.5, 0.05, 0.3), V(0, bottom + 0.02, 1.25)));
-  geos.push(place(new THREE.BoxGeometry(1.5, 0.05, 0.015), V(0, bottom + 0.06, 1.405)));
-  for (const x of [-0.74, 0.74]) geos.push(place(new THREE.BoxGeometry(0.05, 0.12, 0.3), V(x, bottom + 0.08, 1.25)));
+  geos.push(place(Box(1.5, 0.05, 0.3), V(0, bottom + 0.02, 1.25)));
+  geos.push(place(Box(1.5, 0.05, 0.015), V(0, bottom + 0.06, 1.405)));
+  for (const x of [-0.74, 0.74]) geos.push(place(Box(0.05, 0.12, 0.3), V(x, bottom + 0.08, 1.25)));
   // legs with casters; lyre with three pedals
   for (const [x, z] of [[-0.66, 1.12], [0.66, 1.12], [-0.42, -0.8]] as const) {
     geos.push(rod(V(x, 0.05, z), V(x, bottom, z), 0.035, 0.05, 14));
@@ -344,8 +363,8 @@ export function piano(): InstrumentModel {
   }
   geos.push(rod(V(-0.06, 0.08, 0.98), V(-0.06, bottom, 0.98), 0.018, 0.018, 8));
   geos.push(rod(V(0.06, 0.08, 0.98), V(0.06, bottom, 0.98), 0.018, 0.018, 8));
-  geos.push(place(new THREE.BoxGeometry(0.22, 0.05, 0.08), V(0, 0.08, 1.0)));
-  for (const x of [-0.06, 0, 0.06]) geos.push(place(new THREE.BoxGeometry(0.02, 0.01, 0.09), V(x, 0.07, 1.08)));
+  geos.push(place(Box(0.22, 0.05, 0.08), V(0, 0.08, 1.0)));
+  for (const x of [-0.06, 0, 0.06]) geos.push(place(Box(0.02, 0.01, 0.09), V(x, 0.07, 1.08)));
   // a line of light along the case top
   glows.push(tube(caseShape(0.004).getPoints(160).map((p) => V(p.x - 0.74, bottom + caseH + 0.009, 1.1 - p.y)), () => 0.0028, 600, 4, true));
 
@@ -357,11 +376,11 @@ export function piano(): InstrumentModel {
     const black = [1, 3, 6, 8, 10].includes(midi % 12);
     if (!black) {
       const x = -0.69 + (w + 0.5) * whiteW;
-      parts.push({ kind: "key", midi, geo: new THREE.BoxGeometry(whiteW - 0.0016, 0.022, 0.15).translate(x, bottom + 0.067, 1.33), pivot: V(x, bottom + 0.067, 1.255) });
+      parts.push({ kind: "key", midi, geo: Box(whiteW - 0.0016, 0.022, 0.15).translate(x, bottom + 0.067, 1.33), pivot: V(x, bottom + 0.067, 1.255) });
       w++;
     } else {
       const x = -0.69 + w * whiteW;
-      parts.push({ kind: "key", midi, geo: new THREE.BoxGeometry(whiteW * 0.55, 0.026, 0.095).translate(x, bottom + 0.086, 1.3), pivot: V(x, bottom + 0.086, 1.255) });
+      parts.push({ kind: "key", midi, geo: Box(whiteW * 0.55, 0.026, 0.095).translate(x, bottom + 0.086, 1.3), pivot: V(x, bottom + 0.086, 1.255) });
     }
   }
   // strings fanning from the keyboard toward the tail
@@ -394,8 +413,8 @@ export function harp(): InstrumentModel {
   geos.push(place(lathe([[0.001, 0], [0.05, 0], [0.065, 0.02], [0.045, 0.05], [0.07, 0.09], [0.055, 0.12], [0.03, 0.15], [0.001, 0.17]]), V(-0.4, H * 0.86 + 0.1, 0)));
   geos.push(place(lathe([[0.001, 0], [0.11, 0], [0.12, 0.03], [0.08, 0.06], [0.06, 0.12], [0.001, 0.12]]), V(-0.4, 0, 0)));
   // base with seven pedals
-  geos.push(place(new THREE.BoxGeometry(0.62, 0.09, 0.32), V(-0.08, 0.045, 0)));
-  for (let k = 0; k < 7; k++) geos.push(place(new THREE.BoxGeometry(0.018, 0.008, 0.07), V(-0.3 + k * 0.07, 0.04, 0.19)));
+  geos.push(place(Box(0.62, 0.09, 0.32), V(-0.08, 0.045, 0)));
+  for (let k = 0; k < 7; k++) geos.push(place(Box(0.018, 0.008, 0.07), V(-0.3 + k * 0.07, 0.04, 0.19)));
   // neck: S-curve from the crown to the top of the soundboard, with tuning pins
   const neckPts = [V(-0.4, H - 0.02, 0), V(-0.18, H * 0.99, 0), V(0.08, H * 0.86, 0), V(0.32, H * 0.9, 0), V(0.52, H * 0.84, 0), V(0.6, H * 0.78, 0)];
   const neckCurve = new THREE.CatmullRomCurve3(neckPts, false, "centripetal");
@@ -516,7 +535,7 @@ function kettle(r: number, x: number, z: number, midi: number, geos: THREE.Buffe
     geos.push(rod(V(x + Math.cos(a) * r * 0.6, top - r * 0.85 + 0.02, z + Math.sin(a) * r * 0.6), V(x + Math.cos(a) * r * 0.85, 0.03, z + Math.sin(a) * r * 0.85), 0.012, 0.016, 8));
   }
   geos.push(place(new THREE.TorusGeometry(r * 0.85, 0.012, 8, 48), V(x, 0.03, z), new THREE.Euler(Math.PI / 2, 0, 0)));
-  geos.push(place(new THREE.BoxGeometry(0.1, 0.02, 0.18), V(x, 0.04, z + r * 0.7), new THREE.Euler(0.25, 0, 0)));
+  geos.push(place(Box(0.1, 0.02, 0.18), V(x, 0.04, z + r * 0.7), new THREE.Euler(0.25, 0, 0)));
   glows.push(place(new THREE.TorusGeometry(r, 0.0025, 6, 96), V(x, top + 0.016, z), new THREE.Euler(Math.PI / 2, 0, 0)));
   // the head is its own part so it can ripple when struck
   const head = new THREE.RingGeometry(0.002, r * 0.99, 64, 24);
@@ -546,7 +565,7 @@ export function glock(): InstrumentModel {
   const parts: NotePart[] = [];
   const top = 0.86;
   const caseW = 0.95;
-  geos.push(place(new THREE.BoxGeometry(caseW, 0.05, 0.36), V(0, top - 0.04, 0)));
+  geos.push(place(Box(caseW, 0.05, 0.36), V(0, top - 0.04, 0)));
   for (const s of [-1, 1]) {
     geos.push(rod(V(s * 0.36, 0.02, -0.16), V(s * 0.3, top - 0.06, 0.12), 0.012, 0.012, 8));
     geos.push(rod(V(s * 0.36, 0.02, 0.16), V(s * 0.3, top - 0.06, -0.12), 0.012, 0.012, 8));
@@ -559,14 +578,14 @@ export function glock(): InstrumentModel {
     const len = 0.19 - (midi - 79) * 0.0036;
     if (naturals.includes(midi)) {
       const x = xOf(nat++);
-      parts.push({ kind: "bar", midi, geo: new THREE.BoxGeometry(0.042, 0.012, len).translate(x, top + 0.002, 0.08 - (0.19 - len) * 0.5), pivot: V(x, top, 0.08) });
+      parts.push({ kind: "bar", midi, geo: Box(0.042, 0.012, len).translate(x, top + 0.002, 0.08 - (0.19 - len) * 0.5), pivot: V(x, top, 0.08) });
     } else {
       const x = xOf(nat) - 0.025;
-      parts.push({ kind: "bar", midi, geo: new THREE.BoxGeometry(0.038, 0.012, len * 0.85).translate(x, top + 0.025, -0.1), pivot: V(x, top + 0.02, -0.1) });
+      parts.push({ kind: "bar", midi, geo: Box(0.038, 0.012, len * 0.85).translate(x, top + 0.025, -0.1), pivot: V(x, top + 0.02, -0.1) });
     }
   }
-  geos.push(place(new THREE.BoxGeometry(caseW - 0.05, 0.01, 0.012), V(0, top - 0.008, 0.03)));
-  geos.push(place(new THREE.BoxGeometry(caseW - 0.05, 0.03, 0.012), V(0, top + 0.008, -0.1)));
+  geos.push(place(Box(caseW - 0.05, 0.01, 0.012), V(0, top - 0.008, 0.03)));
+  geos.push(place(Box(caseW - 0.05, 0.03, 0.012), V(0, top + 0.008, -0.1)));
   for (const s of [-1, 1]) {
     const a = V(0.12 + s * 0.05, top + 0.05, 0.2), b = V(0.3 + s * 0.06, top + 0.07, 0.42);
     geos.push(rod(a, b, 0.004, 0.004, 6));
@@ -575,4 +594,18 @@ export function glock(): InstrumentModel {
   return { ice: merge(geos), glow: null, strings: [], parts, height: 1.0, radius: 0.55 };
 }
 
-export const BUILDERS = { violin, cello, piano, harp, flute, horn, timpani, glock };
+const carved = (build: () => InstrumentModel) => (): InstrumentModel => {
+  const m = build();
+  return { ...m, ice: carve(m.ice) };
+};
+
+export const BUILDERS = {
+  violin: carved(violin),
+  cello: carved(cello),
+  piano: carved(piano),
+  harp: carved(harp),
+  flute: carved(flute),
+  horn: carved(horn),
+  timpani: carved(timpani),
+  glock: carved(glock),
+};

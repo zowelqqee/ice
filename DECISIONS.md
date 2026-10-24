@@ -115,7 +115,22 @@ Each ice instrument plays its own part of an original 16-bar theme in D minor, s
   window, with a blurred copy of it filling the rest of the frame edge to edge, on any screen.
 - **Shows strip.** The sideways travel happens once; after it, the section is an ordinary row and
   scrolling back up is vertical.
-- **Ice orchestra.** The instruments are frosted ice (milky depth, uneven surface, frost, fractures,
-  bubbles) instead of clear glass, on a blue stage.
+- **Ice orchestra.** Carved ice, not glass and not a bare mesh: rounded, hand-carved edges; a
+  mostly clear, slightly milky body that refracts a lit backdrop, with a thin rainbow at the edges
+  (dispersion), glowing rims and fine frost; light veins only while an instrument is awake. On
+  capable machines it renders at up to 1.75x pixels with anti-aliasing; phones keep lighter settings.
 - **Cursor.** On desktop the cursor is a conductor's baton made of ice; its tip is the hotspot and it
   keeps the frost trail of D11 (fine pointers only, not under reduced motion).
+
+## D14. The jingle: the brand theme for logo moments
+The client's jingle (17.6 s, a working version) is the sound of the brand, not background music:
+- **Enter screen = the brand intro.** "Enter with sound" (or the logo's treble clef) plays it, and
+  the screen is timed to it: a line of light cuts across, on the opening sweep (1.75 s) the halves
+  part like a door into the rink with a burst of light and frost, and the treble clef flies down
+  into the skater and dissolves into her; the hero is open by the musical peak (5–6 s).
+- **The skater spins to it**: a push on the sweep and on each bright chime; her rim light follows
+  the sound through the shared analyser.
+- **The treble clef plays it** again from the footer ("Play our theme").
+- **Not a background loop**: 17 s on repeat tires fast, would clash with the show tracks and the
+  orchestra, and browsers allow no sound before a click anyway. The jingle stops when a show track
+  or the orchestra starts, and they stop it.

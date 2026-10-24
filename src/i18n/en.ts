@@ -91,6 +91,8 @@ const en = {
     soon: "soon",
     rights: "All rights reserved.",
     privacy: "No tracking. No cookies. Just ice.",
+    theme: "Play our theme",
+    themeStop: "Stop our theme",
   },
 };
 

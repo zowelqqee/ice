@@ -129,14 +129,12 @@ function NoteParts({ name, parts, active }: { name: Instrument; parts: NotePart[
           const black = p.kind === "key" && [1, 3, 6, 8, 10].includes(p.midi % 12);
           mat = new THREE.MeshPhysicalMaterial({
             color: black ? new THREE.Color("#7fa6b8") : new THREE.Color("#e6f8ff"),
-            roughness: 0.32, // frosted, like the instrument bodies
-            clearcoat: 0.6,
-            clearcoatRoughness: 0.22,
-            sheen: 0.6,
-            sheenColor: new THREE.Color("#d4f1ff"),
-            envMapIntensity: 2.2,
+            roughness: 0.1, // glossy carved ice, like the instrument bodies
+            clearcoat: 1,
+            clearcoatRoughness: 0.05,
+            envMapIntensity: 2.4,
             transparent: true,
-            opacity: 0.86,
+            opacity: 0.8,
             emissive: new THREE.Color("#5cf2ff"),
             emissiveIntensity: 0,
           });
@@ -370,7 +368,11 @@ function Stage({ q }: { q: Quality }) {
           void main(){
             vec2 p = (vUv - vec2(0.5, 0.42)) * vec2(0.8, 1.6);
             float d = length(p);
-            vec3 c = vec3(0.065, 0.19, 0.25) * exp(-d * d * 3.5) + vec3(0.01, 0.026, 0.038) * exp(-d * 1.5);
+            // a lit cyclorama behind the orchestra: the ice refracts it, so it needs light and shape
+            vec3 c = vec3(0.16, 0.42, 0.56) * exp(-d * d * 3.0) + vec3(0.05, 0.13, 0.19) * exp(-d * 1.4);
+            // soft vertical light shafts
+            float shafts = pow(0.5 + 0.5 * sin(vUv.x * 46.0 + sin(vUv.x * 7.0) * 2.0), 6.0) * smoothstep(0.15, 0.9, vUv.y);
+            c += vec3(0.1, 0.24, 0.3) * shafts * exp(-d * 1.2);
             c *= smoothstep(0.0, 0.32, vUv.y);
             gl_FragColor = vec4(c, 1.0);
           }`,
@@ -389,12 +391,15 @@ function Stage({ q }: { q: Quality }) {
         <Lightformer form="rect" intensity={2.2} position={[-6, 2, 1]} rotation-y={Math.PI / 2} scale={[8, 1.2, 1]} color="#5cf2ff" />
         <Lightformer form="rect" intensity={1.8} position={[6, 1.5, 2]} rotation-y={-Math.PI / 2} scale={[8, 0.8, 1]} color="#eaf6ff" />
         <Lightformer form="rect" intensity={2.4} position={[0, 3, 7]} scale={[12, 2.5, 1]} color="#eaf6ff" />
-        <Lightformer form="rect" intensity={3} position={[0, 0.6, -6]} scale={[18, 0.5, 1]} color="#7fe9ff" />
+        <Lightformer form="rect" intensity={5} position={[0, 0.6, -6]} scale={[18, 0.5, 1]} color="#7fe9ff" />
+        <Lightformer form="rect" intensity={3} position={[0, 2.5, -6.5]} scale={[10, 4, 1]} color="#bdefff" />
         <Lightformer form="ring" intensity={3.5} position={[2, 6, 0]} scale={2} color="#ffffff" />
       </Environment>
       <ambientLight intensity={0.25} />
       <spotLight position={[-4, 7, 5]} angle={0.7} penumbra={0.9} intensity={70} color="#d6f8ff" />
       <spotLight position={[5, 6, 4]} angle={0.7} penumbra={0.9} intensity={45} color="#bfefff" />
+      {/* from behind: the rims of the ice light up */}
+      <directionalLight position={[0, 4, -7]} intensity={2.4} color="#d8f7ff" />
 
       <mesh position={[span / 2, 5, -9]} material={haze}>
         <planeGeometry args={[30 + span, 10]} />
@@ -433,10 +438,10 @@ function Stage({ q }: { q: Quality }) {
         )}
       </mesh>
 
-      <EffectComposer multisampling={0}>
-        <Bloom mipmapBlur intensity={0.75} luminanceThreshold={0.82} radius={0.5} />
+      <EffectComposer multisampling={q.tier === "high" ? 2 : 0}>
+        <Bloom mipmapBlur intensity={0.85} luminanceThreshold={0.76} radius={0.5} />
         <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-        <SMAA />
+        {q.tier === "high" ? <></> : <SMAA />}
         <Vignette offset={0.3} darkness={0.45} />
       </EffectComposer>
     </>
@@ -477,7 +482,8 @@ export default function Orchestra({ active = true }: { active?: boolean }) {
   useEffect(() => {
     const d = detectQuality();
     setQ(d);
-    setDpr(Math.min(window.devicePixelRatio || 1, d.dpr[1], 1.5));
+    // capable machines render the ice at up to 1.75x pixels; others keep the tier's cap
+    setDpr(Math.min(window.devicePixelRatio || 1, d.tier === "high" ? 1.75 : Math.min(d.dpr[1], 1.5)));
   }, []);
   return (
     <div ref={wrap} className="relative h-full w-full touch-pan-y">
@@ -500,8 +506,8 @@ export default function Orchestra({ active = true }: { active?: boolean }) {
           camera={{ fov: 34, near: 0.1, far: 50, position: [0, 2.35, 8.6] }}
           gl={{ antialias: false, powerPreference: "high-performance" }}
           onCreated={({ gl }) => {
-            // the refraction buffer behind the ice does not need full resolution
-            (gl as THREE.WebGLRenderer & { transmissionResolutionScale: number }).transmissionResolutionScale = 0.5;
+            // what the ice refracts: three-quarter resolution on capable machines, half elsewhere
+            (gl as THREE.WebGLRenderer & { transmissionResolutionScale: number }).transmissionResolutionScale = q.tier === "high" ? 0.75 : 0.5;
           }}
         >
           <PerformanceMonitor onDecline={() => setDpr((d) => Math.max(1, d * 0.85))} />

@@ -218,6 +218,12 @@ The map frame is fixed (Europe, the Mediterranean and the Gulf). A date outside 
 position, is listed but not drawn. The land layer is pre-rendered before every `dev` and `build`
 (`scripts/build-map.mjs`).
 
+### The jingle (brand theme)
+
+Plays on the Enter screen (the intro is timed to it) and from the treble clef in the footer. To
+replace it with the final version, run `scripts/media/jingle.sh <file>`; if its opening sweep is no
+longer at 1.75 s, update `JINGLE_SWEEP` and the chime times in `src/lib/audio/jingle.ts`.
+
 ### Add a music track (in files)
 
 1. Add a `track` line to `scripts/media/music.sh` and run it. It writes `public/media/music/<id>.{webm,m4a}`, loudness-normalised and metadata-free.

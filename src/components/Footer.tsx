@@ -1,7 +1,7 @@
-import Image from "next/image";
 import { locales } from "@/i18n";
 import type { Dictionary } from "@/i18n";
 import type { SiteSettings } from "@/lib/content";
+import { ThemeButton } from "./ThemeButton";
 
 export function Footer({ t, site }: { t: Dictionary["footer"]; site: SiteSettings }) {
   const year = new Date().getFullYear();
@@ -71,7 +71,7 @@ export function Footer({ t, site }: { t: Dictionary["footer"]; site: SiteSetting
 
       <div className="mt-20 flex flex-col gap-8 border-t border-deep pt-8 md:flex-row md:items-end md:justify-between">
         <div className="flex items-center gap-6">
-          <Image src="/brand/logo-white.webp" alt="Musical on Ice" width={1323} height={1005} className="h-auto w-[84px] opacity-80" />
+          <ThemeButton play={t.theme} stop={t.themeStop} />
           <p className="max-w-[30ch] text-[13px] text-frost">{t.privacy}</p>
         </div>
         <nav aria-label={t.language} className="flex items-center gap-4 font-mono text-[11px] uppercase tracking-[0.2em]">
