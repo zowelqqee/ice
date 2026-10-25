@@ -7,7 +7,8 @@ import { Document, NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, getBounds, meshopt, prune, transformMesh, weld } from "@gltf-transform/functions";
 import { MeshoptEncoder } from "meshoptimizer";
-import { mkdirSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -41,6 +42,9 @@ function rotation([x, y, z]) {
   ];
 }
 
+// content fingerprints: the page asks for <name>.glb?v=<hash>, so a rebuilt file is never served
+// from a browser's cache of the old one (model files are cached for a day)
+const manifest = {};
 for (const [name, spec] of Object.entries(SPECS)) {
   // gather the spec's files into one document, one node per mesh
   const doc = new Document();
@@ -79,5 +83,7 @@ for (const [name, spec] of Object.entries(SPECS)) {
   await doc.transform(weld(), dedup(), prune(), meshopt({ encoder: MeshoptEncoder, level: "medium" }));
   await io.write(join(OUT, `${name}.glb`), doc);
   const tris = meshes.reduce((t, m) => t + m.listPrimitives().reduce((u, p) => u + (p.getIndices()?.getCount() ?? 0) / 3, 0), 0);
+  manifest[name] = createHash("sha256").update(readFileSync(join(OUT, `${name}.glb`))).digest("hex").slice(0, 12);
   console.log(`${name}.glb: ${Math.round(tris)} tris, ${(statSync(join(OUT, `${name}.glb`)).size / 1024).toFixed(0)} KB`);
 }
+writeFileSync(join(ROOT, "src/components/music/models-manifest.json"), JSON.stringify(manifest, null, 2) + "\n");

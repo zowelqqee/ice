@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import { pedestal, type InstrumentModel } from "./instruments";
+import manifest from "./models-manifest.json";
 import type { Instrument } from "@/lib/audio/orchestra";
 
 // Detailed instrument shapes from CC0 models (sources and licences: scripts/instruments/README.md).
@@ -23,7 +24,8 @@ export const MODEL_SPECS: Partial<Record<Instrument, Spec>> = {
   horn: { lift: 0.85, radius: 0.5 },
 };
 
-export const modelUrl = (name: string) => `/models/instruments/${name}.glb`;
+// the content fingerprint makes every rebuilt model a new address: never an old file from the cache
+export const modelUrl = (name: string) => `/models/instruments/${name}.glb?v=${(manifest as Record<string, string>)[name] ?? "0"}`;
 
 /** Plain float copies of the file's meshes, in metres (the file stores quantized attributes and
  *  the scale to undo them on the node). */
