@@ -201,10 +201,12 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
           {t.tagline}
         </p>
 
+        {/* mid-scroll line: above her head on phones, beside her on wider screens (the camera is
+            close then and she fills the middle) */}
         <p
           data-hero-ui
           data-mid
-          className="display pointer-events-none absolute inset-x-[var(--gutter)] top-[18svh] text-center text-[11vw] text-ice opacity-0 drop-shadow-[0_2px_16px_rgba(6,20,34,0.75)] md:top-[16vh] md:text-[6.5vw]"
+          className="display pointer-events-none absolute inset-x-[var(--gutter)] top-[15svh] text-center text-[11vw] text-ice opacity-0 drop-shadow-[0_2px_16px_rgba(6,20,34,0.75)] md:right-auto md:top-[38vh] md:max-w-[30vw] md:text-left md:text-[5.2vw] md:leading-[1.02] md:text-balance"
           aria-hidden
         >
           {t.mid}

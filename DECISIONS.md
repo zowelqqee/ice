@@ -69,9 +69,11 @@ font service.
 Dictionaries live in `src/i18n/` (en complete; de, fr, es, it are stubs that fall back to en).
 There are no locale routes yet. Adding `/[locale]` is a mechanical step once translations exist.
 
-## D7. Sound off until the visitor chooses
-The Enter screen asks "with sound / in silence". Nothing plays before that gesture, and the mute button
-stays in the header. Until licensed stems exist, the hero runs a small Web Audio ambient: an ice pad,
+## D7. Sound on by default (updated after the October 2026 review)
+The Enter screen offers "with sound" first and "in silence" second. Browsers only let sound start
+from a gesture, so on a revisit (no Enter screen) it starts with the visitor's first click, tap or
+key. A visitor who chooses silence or turns sound off with the header button is remembered across
+visits; then nothing plays until they turn it back on. (First version: off until the visitor chose.) Until licensed stems exist, the hero runs a small Web Audio ambient: an ice pad,
 blade hiss that follows spin speed, and glass bells on fast spins. Show music is extracted from the
 supplied videos' soundtracks (rights: open question).
 

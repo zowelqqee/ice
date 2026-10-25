@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
-import { audio } from "@/lib/audio/engine";
+import { audio, rememberSound } from "@/lib/audio/engine";
 import { jingle, JINGLE_SWEEP } from "@/lib/audio/jingle";
 import { useLenis } from "./SmoothScroll";
 import { BrandLogo } from "./brand/BrandLogo";
@@ -96,7 +96,8 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
   const firstBtn = useRef<HTMLButtonElement>(null);
   const lenis = useLenis();
 
-  // skip on revisit in the same session (sound stays off until the mute button is used)
+  // skip on revisit in the same session (sound then starts on the first click or tap, unless the
+  // visitor turned it off)
   useEffect(() => {
     try {
       if (sessionStorage.getItem(SEEN_KEY)) return setOpen(false);
@@ -148,6 +149,7 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
     if (leaving.current) return;
     leaving.current = true;
     let music = false;
+    rememberSound(withSound);
     if (withSound) {
       await audio.enable();
       music = await jingle.play();

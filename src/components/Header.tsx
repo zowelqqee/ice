@@ -14,6 +14,7 @@ function SoundButton({ t }: { t: Dictionary["sound"] }) {
   return (
     <button
       type="button"
+      data-sound-toggle
       onClick={() => audio.toggle()}
       aria-pressed={!muted}
       aria-label={muted ? t.unmute : t.mute}

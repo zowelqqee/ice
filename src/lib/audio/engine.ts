@@ -1,5 +1,7 @@
-// Single Web Audio graph for the whole site. Nothing is created until the visitor makes a
-// choice on the Enter screen (browsers require a gesture, and the brief requires consent).
+// Single Web Audio graph for the whole site. Sound is on by default (client, October 2026), but
+// browsers only let it start from a gesture: the Enter screen's buttons, or, without it, the
+// visitor's first click, tap or key anywhere. A visitor who turns it off (the Enter screen's
+// "in silence" or the sound button) is remembered, and then it waits for the button.
 //
 //   sources ─► bus ─► master (mute) ─► analyser ─► destination
 //                └──► reverb send
@@ -80,8 +82,10 @@ class AudioEngine {
   }
 
   toggle() {
+    const on = !this._enabled || this._muted;
+    rememberSound(on);
     if (!this._enabled) return this.enable();
-    this.setMuted(!this._muted);
+    this.setMuted(!on);
   }
 
   private build() {
@@ -260,4 +264,34 @@ function impulse(ctx: AudioContext, seconds: number, decay: number) {
   return buf;
 }
 
+const PREF_KEY = "moi.sound";
+/** The visitor's own choice, kept across visits: "off" means wait for the sound button. */
+export function rememberSound(on: boolean) {
+  try {
+    localStorage.setItem(PREF_KEY, on ? "on" : "off");
+  } catch {}
+}
+function soundRefused() {
+  try {
+    return localStorage.getItem(PREF_KEY) === "off";
+  } catch {
+    return false;
+  }
+}
+
 export const audio = new AudioEngine();
+
+// sound on by default: start on the first gesture the browser accepts for it (not while the Enter
+// screen is up: its buttons choose; not from the sound button itself: it toggles on its own)
+if (typeof window !== "undefined") {
+  const events = ["pointerdown", "keydown", "touchend", "click"] as const;
+  const stop = () => events.forEach((e) => window.removeEventListener(e, start, true));
+  const start = (e: Event) => {
+    if (audio.enabled || soundRefused()) return stop();
+    if ("gate" in document.documentElement.dataset) return;
+    if ((e.target as Element | null)?.closest?.("[data-sound-toggle]")) return stop();
+    stop();
+    void audio.enable();
+  };
+  events.forEach((e) => window.addEventListener(e, start, { capture: true, passive: true }));
+}
