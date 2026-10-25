@@ -9,17 +9,16 @@ import * as THREE from "three";
 import { Skater } from "./Skater";
 import { SkaterModel, SKATER_MODEL } from "./SkaterModel";
 import { Trails } from "./Trails";
-import { Beam, Glow, Ice, Plate, Snow, Spray } from "./Stage";
+import { Arena, Curtains, Glow, Ice, MorphRing, Snow, Spray, Trace } from "./Stage";
+import { MORPH_TIME, MORPH_TOP, curtains, morph, updateClipPlanes } from "./morph";
 import { createStageUniforms, type StageUniforms } from "./uniforms";
-import { spin, stepSpin } from "@/lib/spin";
+import { impulse, spin, stepSpin } from "@/lib/spin";
 import { heroScroll, pointer } from "@/lib/pointer";
 import { audio } from "@/lib/audio/engine";
 import { detectQuality, lower, presets, type Quality } from "@/lib/quality";
 
-const PLATE = { webm: "/media/hero/arena-plate.webm", mp4: "/media/hero/arena-plate.mp4" };
 // the page colour (--ink): the scene is a deep ice blue, never black
 const SCENE_BG = "#0b1d2e";
-const POSTER = "/media/hero/arena-plate.jpg";
 
 function Director({ stage, dpr }: { stage: StageUniforms; dpr: number }) {
   const { camera, size } = useThree();
@@ -60,6 +59,39 @@ function Director({ stage, dpr }: { stage: StageUniforms; dpr: number }) {
     cam.position.set(x, y, z);
     look.set(0, THREE.MathUtils.lerp(aspect > 1 ? 1.14 : 1.02, 1.12, e), 0);
     cam.lookAt(look);
+  });
+  return null;
+}
+
+/** The clef and the skater take turns: once the curtains part the clef spins a moment, then a line
+ *  of light climbs it and leaves her; she dances a while, turns back into the clef, and so on.
+ *  While the visitor scrolls she stays herself (the camera moves in on her). */
+function MorphDirector() {
+  const hold = useRef(0);
+  useFrame((_, dt) => {
+    const d = Math.min(dt, 1 / 20);
+    if (spin.still || spin.reduced) {
+      morph.lower = "girl";
+      morph.line = 99;
+    } else if (morph.line < 90) {
+      morph.line += ((MORPH_TOP + 0.1) / MORPH_TIME) * d;
+      if (morph.line >= MORPH_TOP + 0.05) {
+        morph.line = 99;
+        hold.current = morph.lower === "girl" ? 10 : 4;
+      }
+    } else if (curtains.cueAt >= 0) {
+      const scrolled = heroScroll.progress > 0.06;
+      const settling = (performance.now() - curtains.cueAt) / 1000 < 3.6; // the clef spins first
+      if (morph.lower === "girl" && scrolled) hold.current = Math.max(hold.current, 2);
+      else hold.current -= d;
+      if ((hold.current <= 0 && !settling) || (scrolled && morph.lower === "clef")) {
+        morph.lower = morph.lower === "girl" ? "clef" : "girl";
+        morph.line = -0.05;
+        morph.startedAt = performance.now();
+        impulse(7);
+      }
+    }
+    updateClipPlanes();
   });
   return null;
 }
@@ -121,10 +153,11 @@ function Scene({ q, dpr, model, onReady }: { q: Quality; dpr: number; model: boo
   return (
     <>
       <Director stage={stage} dpr={dpr} />
-      <Plate src={PLATE} poster={POSTER} />
+      <MorphDirector />
+      <Arena stage={stage} />
       <Glow stage={stage} />
-      <Beam stage={stage} />
       <Ice stage={stage} />
+      <Trace stage={stage} />
       {model ? (
         <ModelBoundary fallback={sdf}>
           <Suspense fallback={null}>
@@ -139,6 +172,8 @@ function Scene({ q, dpr, model, onReady }: { q: Quality; dpr: number; model: boo
       {!spin.reduced && !spin.still && <Trails stage={stage} />}
       <Snow stage={stage} count={q.snow} size={q.tier === "low" ? 34 : 42} />
       {!spin.reduced && !spin.still && <Spray stage={stage} max={q.spray} radius={model ? 0.035 : 0.12} />}
+      <MorphRing stage={stage} />
+      <Curtains stage={stage} />
     </>
   );
 }
@@ -173,6 +208,7 @@ export default function HeroCanvas({ onReady, active = true }: { onReady?: () =>
         // composer path and the no-post path look identical
         gl.outputColorSpace = THREE.LinearSRGBColorSpace;
         gl.toneMapping = THREE.NoToneMapping;
+        gl.localClippingEnabled = true; // the clef and the skater are cut at the line as they change
         scene.background = new THREE.Color(SCENE_BG);
       }}
     >

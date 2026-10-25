@@ -7,6 +7,7 @@ import { jingle, JINGLE_SWEEP } from "@/lib/audio/jingle";
 import { useLenis } from "./SmoothScroll";
 import { BrandLogo } from "./brand/BrandLogo";
 import { LOGO_CLEF, LOGO_VIEWBOX } from "./brand/logo";
+import { cueCurtains } from "./hero/morph";
 import type { Dictionary } from "@/i18n";
 
 const SEEN_KEY = "moi.entered";
@@ -16,7 +17,8 @@ const SEEN_KEY = "moi.entered";
  * then the visitor chooses sound or silence (the logo's treble clef also enters with sound).
  * With sound, leaving is the brand intro, timed to the jingle: a line of light cuts the screen,
  * on the opening sweep the two halves part like a door into the rink, light and frost burst out,
- * and the treble clef flies down into the skater and becomes her. In silence the same, quicker.
+ * the stage curtains behind it part, and the treble clef flies down onto the ice, where the glass
+ * clef takes over (and later turns into the skater). In silence the same, quicker.
  */
 
 /** Frost crystals bursting out of a line or a point (one canvas, drawn only during the intro). */
@@ -158,7 +160,10 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
       sessionStorage.setItem(SEEN_KEY, "1");
     } catch {}
     const el = root.current;
-    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return setOpen(false);
+    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      cueCurtains();
+      return setOpen(false);
+    }
 
     // timed to the jingle with music; the same shape, quicker, in silence
     const k = music ? 1 : 0.5;
@@ -202,7 +207,10 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
       .to(el.querySelector("[data-flash]"), { opacity: 0, duration: 1.2 * k, ease: "power2.in" }, sweep + 0.2)
       .to(el.querySelector("[data-cut]"), { autoAlpha: 0, duration: 0.4 }, sweep + 0.15)
       .call(() => frost.line(0, H * 0.62, W, H * 0.38, music ? 240 : 140), [], sweep)
-      // the clef flies down into the skater, grows to her height and dissolves into her
+      // the stage curtains behind the door start to part as it opens
+      .call(cueCurtains, [], sweep)
+      // the clef flies down to where the glass clef stands on the ice, grows to its height and
+      // dissolves into it
       .to(fly, { x: fx, y: fy, scale, duration: 1.5 * k, ease: "power3.inOut" }, sweep + 0.1)
       .to(fly, { opacity: 0, duration: 0.7 * k, ease: "power1.in" }, sweep + 0.1 + 1.0 * k)
       .call(() => frost.point(target.x, target.y + target.h * 0.42, music ? 110 : 60), [], sweep + 0.1 + 1.1 * k)

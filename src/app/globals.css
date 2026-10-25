@@ -162,18 +162,6 @@ html.lenis body {
   background: var(--accent);
 }
 
-/* the ice baton replaces the system cursor on desktop (FrostCursor); text fields keep a caret */
-html.baton-cursor,
-html.baton-cursor * {
-  cursor: none !important;
-}
-html.baton-cursor :is(input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), textarea, select, [contenteditable="true"]) {
-  cursor: auto !important;
-}
-html[data-still] [data-baton] {
-  display: none !important;
-}
-
 /* poster capture (?still): only the 3D scene is visible */
 html[data-still] header,
 html[data-still] [data-hero-ui],

@@ -11,7 +11,10 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { skaterPoints } from "./Skater";
+import { clipPlanes, formVisible } from "./morph";
+import { LOGO_CLEF } from "@/components/brand/logo";
 import type { StageUniforms } from "./uniforms";
 
 export const SKATER_MODEL = "/models/skater.glb";
@@ -57,7 +60,7 @@ interface GlassLook {
 /** Glass on top of three's physical material: the material supplies reflections and specular
  *  highlights (diffuse is black), the shader adds the edge glow, rim and glints, and writes
  *  premultiplied colour so the glass both lets the stage through and adds light to it. */
-function glass(stage: StageUniforms, shared: Shared, env: THREE.Texture, look: GlassLook, head: THREE.Vector3) {
+function glass(stage: StageUniforms, shared: Shared, env: THREE.Texture, look: GlassLook, head: THREE.Vector3, clip: THREE.Plane) {
   const m = new THREE.MeshPhysicalMaterial({
     color: "#000000",
     roughness: look.sparkle ? 0.02 : 0.07,
@@ -75,6 +78,7 @@ function glass(stage: StageUniforms, shared: Shared, env: THREE.Texture, look: G
     depthWrite: !!look.solid && !look.inside,
     side: look.inside ? THREE.BackSide : look.solid ? THREE.FrontSide : THREE.DoubleSide,
     premultipliedAlpha: true,
+    clippingPlanes: [clip],
   });
   const extra = { uTint: { value: TINT }, uHead: { value: head } };
   m.onBeforeCompile = (sh) => {
@@ -123,7 +127,7 @@ ${GLITTER}`,
 }
 
 /** Spun-glass hair (glTF LINES): anisotropic highlights from the stage lights, fading tips. */
-function glassStrands(geom: THREE.BufferGeometry, shared: Shared, stage: StageUniforms) {
+function glassStrands(geom: THREE.BufferGeometry, shared: Shared, stage: StageUniforms, clip: THREE.Plane) {
   const pos = geom.getAttribute("position") as THREE.BufferAttribute;
   const idx = geom.getIndex();
   const tan = new Float32Array(pos.count * 3);
@@ -147,6 +151,8 @@ function glassStrands(geom: THREE.BufferGeometry, shared: Shared, stage: StageUn
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false, // normal blending at low opacity: dense strands settle to a frosted tone
+    clipping: true,
+    clippingPlanes: [clip],
     uniforms: { ...shared, uRimColor: stage.uRimColor, uRim: stage.uRim, uTint: { value: TINT } },
     vertexShader: /* glsl */ `
 attribute vec3 aTangent;
@@ -154,12 +160,15 @@ attribute vec4 aStrand;
 varying vec3 vT;
 varying vec3 vV;
 varying vec2 vS;
+#include <clipping_planes_pars_vertex>
 void main() {
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vT = normalize(mat3(modelMatrix) * aTangent + 1e-6);
   vV = normalize(cameraPosition - wp.xyz);
   vS = aStrand.xy;
-  gl_Position = projectionMatrix * viewMatrix * wp;
+  vec4 mvPosition = viewMatrix * wp;
+  #include <clipping_planes_vertex>
+  gl_Position = projectionMatrix * mvPosition;
 }`,
     fragmentShader: /* glsl */ `
 uniform vec3 uW1; uniform vec3 uW2; uniform vec3 uW3;
@@ -167,11 +176,13 @@ uniform vec3 uRimColor; uniform float uRim; uniform vec3 uTint;
 varying vec3 vT;
 varying vec3 vV;
 varying vec2 vS;
+#include <clipping_planes_pars_fragment>
 float spec(vec3 T, vec3 L, vec3 V) {
   float th = dot(T, normalize(L + V));
   return pow(sqrt(max(0.0, 1.0 - th * th)), 120.0);
 }
 void main() {
+  #include <clipping_planes_fragment>
   vec3 T = normalize(vT);
   float tv = dot(T, vV);
   float edge = 1.0 - sqrt(max(0.0, 1.0 - tv * tv)); // strands seen end-on glow a little
@@ -185,27 +196,34 @@ void main() {
 }
 
 /** The reflection in the ice: a faint glass silhouette fading with depth below the surface. */
-function mirrorMaterial() {
+function mirrorMaterial(clip: THREE.Plane) {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
+    clipping: true,
+    clippingPlanes: [clip],
     uniforms: { uTint: { value: TINT } },
     vertexShader: /* glsl */ `
 varying float vY;
 varying float vF;
+#include <clipping_planes_pars_vertex>
 void main() {
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vY = wp.y;
   vec3 n = normalize(mat3(modelMatrix) * normal);
   vF = pow(1.0 - abs(dot(n, normalize(cameraPosition - wp.xyz))), 2.0);
-  gl_Position = projectionMatrix * viewMatrix * wp;
+  vec4 mvPosition = viewMatrix * wp;
+  #include <clipping_planes_vertex>
+  gl_Position = projectionMatrix * mvPosition;
 }`,
     fragmentShader: /* glsl */ `
 uniform vec3 uTint;
 varying float vY;
 varying float vF;
+#include <clipping_planes_pars_fragment>
 void main() {
+  #include <clipping_planes_fragment>
   float a = 0.16 * exp(vY * 1.3) * (0.25 + vF);
   gl_FragColor = vec4(uTint * a, 1.0);
 }`,
@@ -224,6 +242,28 @@ function useEnvMap() {
   return env;
 }
 
+/** Height of the glass clef on the ice (her height with arms raised). */
+const CLEF_HEIGHT = 1.95;
+let clefGeo: THREE.BufferGeometry | null = null;
+/** The logo's treble clef as a solid: extruded, bevelled, standing on the ice with its stem on
+ *  the spin axis (built once from the vector shape). */
+function clefGeometry() {
+  if (clefGeo) return clefGeo;
+  const svg = new SVGLoader().parse(`<svg xmlns="http://www.w3.org/2000/svg"><path d="${LOGO_CLEF}"/></svg>`);
+  const shapes = svg.paths.flatMap((p) => SVGLoader.createShapes(p));
+  const depth = 34; // logo units (the clef is ~754 tall)
+  const g = new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: true, bevelThickness: 9, bevelSize: 5, bevelSegments: 3, curveSegments: 10 });
+  g.computeBoundingBox();
+  const bottom = g.boundingBox!.max.y;
+  const s = CLEF_HEIGHT / (bottom - g.boundingBox!.min.y);
+  // the stem stands on the spin axis; y flips (the artwork is top-down), z flips too so the faces
+  // keep their winding
+  g.translate(-1152, -bottom, -depth / 2);
+  g.scale(s, -s, -s);
+  clefGeo = g;
+  return g;
+}
+
 export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; mirror?: boolean }) {
   const gltf = useGLTF(SKATER_MODEL, false, true);
   const env = useEnvMap();
@@ -239,7 +279,7 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
     [],
   );
 
-  const { scene, fit } = useMemo(() => {
+  const { scene, fit, clef } = useMemo(() => {
     const scene = gltf.scene.clone(true);
     scene.updateMatrixWorld(true);
     const at = (name: string) => scene.getObjectByName(name)?.getWorldPosition(new THREE.Vector3()) ?? new THREE.Vector3();
@@ -258,13 +298,14 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
       cap.geometry.boundingBox!.getCenter(head).applyMatrix4(cap.matrixWorld);
       head.y -= 0.03;
     }
-    const solid = glass(stage, shared, env, { body: 0.06, edge: 0.75, glitter: 0.004, solid: true }, head);
-    const velvet = glass(stage, shared, env, { body: 0.05, edge: 0.7, glitter: 0.02, solid: true }, head);
-    const inside = glass(stage, shared, env, { body: 0.03, edge: 0.55, glitter: 0, solid: true, inside: true }, head);
-    const frosted = glass(stage, shared, env, { body: 0.42, edge: 0.6, glitter: 0.01 }, head); // hair mass: denser, so the head holds its shape against the lamp
-    const chiffon = glass(stage, shared, env, { body: 0.03, edge: 0.6, glitter: 0.02 }, head);
-    const sparkle = glass(stage, shared, env, { body: 0.1, edge: 0.9, glitter: 0, sparkle: true }, head);
-    const mirrorMat = mirrorMaterial();
+    const cut = clipPlanes.girl;
+    const solid = glass(stage, shared, env, { body: 0.06, edge: 0.75, glitter: 0.004, solid: true }, head, cut);
+    const velvet = glass(stage, shared, env, { body: 0.05, edge: 0.7, glitter: 0.02, solid: true }, head, cut);
+    const inside = glass(stage, shared, env, { body: 0.03, edge: 0.55, glitter: 0, solid: true, inside: true }, head, cut);
+    const frosted = glass(stage, shared, env, { body: 0.42, edge: 0.6, glitter: 0.01 }, head, cut); // hair mass: denser, so the head holds its shape against the lamp
+    const chiffon = glass(stage, shared, env, { body: 0.03, edge: 0.6, glitter: 0.02 }, head, cut);
+    const sparkle = glass(stage, shared, env, { body: 0.1, edge: 0.9, glitter: 0, sparkle: true }, head, cut);
+    const mirrorMat = mirrorMaterial(clipPlanes.girlMirror);
     // by part name (node names survive the optimiser; identical placeholder materials do not)
     const byPart: Record<string, THREE.Material> = {
       velvet,
@@ -322,7 +363,7 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
         return;
       }
       if (lines) {
-        obj.material = glassStrands(obj.geometry, shared, stage);
+        obj.material = glassStrands(obj.geometry, shared, stage, cut);
         obj.renderOrder = 6;
         return;
       }
@@ -340,7 +381,23 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
       b.quaternion.copy(m.quaternion);
       b.scale.copy(m.scale);
     }
-    return { scene, fit };
+
+    // the treble clef from the logo, in the same glass, standing where she stands
+    const clef = new THREE.Group();
+    const far = new THREE.Vector3(0, 99, 0); // no face to calm
+    const clefGlass = mirror
+      ? [mirrorMaterial(clipPlanes.clefMirror)]
+      : [
+          glass(stage, shared, env, { body: 0.03, edge: 0.55, glitter: 0, solid: true, inside: true }, far, clipPlanes.clef),
+          glass(stage, shared, env, { body: 0.07, edge: 0.85, glitter: 0.012, solid: true }, far, clipPlanes.clef),
+        ];
+    clefGlass.forEach((m, i) => {
+      const mesh = new THREE.Mesh(clefGeometry(), m);
+      mesh.renderOrder = mirror ? 1 : i === 0 ? 2.9 : 3;
+      mesh.frustumCulled = false;
+      clef.add(mesh);
+    });
+    return { scene, fit, clef };
   }, [gltf.scene, stage, shared, mirror, env]);
 
   const figure = useRef<THREE.Group>(null);
@@ -351,6 +408,8 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
     const f = figure.current;
     if (!f) return;
     f.rotation.y = stage.uAngle.value + MODEL_YAW;
+    scene.visible = formVisible("girl");
+    clef.visible = formVisible("clef");
     const view = state.camera.matrixWorldInverse;
     shared.uW1.value.copy(stage.uLightPos.value).sub(center).normalize();
     shared.uW2.value.copy(stage.uSidePos.value).sub(center).normalize();
@@ -373,6 +432,7 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
         <group position={fit.offset}>
           <primitive object={scene} />
         </group>
+        <primitive object={clef} />
       </group>
     </group>
   );

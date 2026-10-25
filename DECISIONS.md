@@ -12,6 +12,9 @@ gradient the brief bans, and it collides with Dracula's blood red.
 
 ## D2. Hero pirouette: a sculpted dancer model in contre-jour + real arena footage behind
 
+**Update 3 (client review, 2026-10-25):** the arena footage behind her is gone; the backdrop is a
+drawn stage behind red curtains (see D13).
+
 **Update 2 (client choice, 2026-10-16):** the dancer is our own figure skater, built from the client's costume sketch. The pose: on the left skate, right leg in passé, arms rounded overhead. The costume: velvet bodice, sheer sleeves, three-layer chiffon skirt, crystals, laced skates and a bun with loose strands.
 
 - **Construction.** Everything is built by script in Blender (`scripts/skater/`, see its README) on a MakeHuman CC0 body, so no credit is needed. The earlier "Ballerina" by LollyPoly (CC BY) and its footer credit are gone.
@@ -110,17 +113,31 @@ Each ice instrument plays its own part of an original 16-bar theme in D minor, s
   emphasis is colour only (supersedes the italic part of D4).
 - **Not black.** The page is a deep ice blue (`--ink: #0b1d2e`), and so are the 3D scenes; contrast
   for text stays AA.
-- **First screen.** The skater stands on a lit rink with her reflection and skate marks. Behind her,
-  real footage of a skater jumping across blue ice (D5-safe, see MATERIALS), small in a soft
-  window, with a blurred copy of it filling the rest of the frame edge to edge, on any screen.
-- **Shows strip.** The sideways travel happens once; after it, the section is an ordinary row and
-  scrolling back up is vertical.
+- **First screen (second review).** No footage behind her: it read as visual noise. The scene is a
+  stage seen past red velvet curtains, just parted (a musical means red curtains): a glossy rink
+  with the far rig's spotlights mirrored in long streaks, a dark hall behind, and the skater in
+  the middle of the ice, the space right behind her kept darkest so she stands out. All drawn in
+  shaders (`src/components/hero/shaders/stage.ts`: arena, ice, curtains); the curtains frame the
+  shot on any screen, narrower on phones, and part out of the frame as the visitor scrolls.
+  - **Curtains closed first.** The page opens on them shut (the first paint is that frame); they
+    part a little as the Enter screen's door opens, or once the scene is ready on a revisit.
+  - **The clef is the skater.** On the ice stands the logo's treble clef in the same glass; it
+    spins, then a ring of light climbs it from the ice and leaves the skater (each form is cut at
+    the ring); she dances ~10 s, turns back into the clef for ~4 s, and so on. While the visitor
+    scrolls she stays herself. Under reduced motion and in the posters: the skater only.
+  - **The blade trace** from the logo (its swoosh) is carved into the ice round her feet and
+    flashes when the figure changes.
+  - **A hall full of lights** behind: the rig's spotlights, rows of small lights in the stands,
+    balcony fronts.
+- **Shows strip (second review).** No forced sideways travel: the shows are an ordinary row and the
+  page scrolls straight past it. Left/right arrows (and swipe or trackpad) browse it for those
+  who want to; a thin bar shows how far along the row is.
 - **Ice orchestra.** Carved ice, not glass and not a bare mesh: rounded, hand-carved edges; a
   mostly clear, slightly milky body that refracts a lit backdrop, with a thin rainbow at the edges
   (dispersion), glowing rims and fine frost; light veins only while an instrument is awake. On
   capable machines it renders at up to 1.75x pixels with anti-aliasing; phones keep lighter settings.
-- **Cursor.** On desktop the cursor is a conductor's baton made of ice; its tip is the hotspot and it
-  keeps the frost trail of D11 (fine pointers only, not under reduced motion).
+- **Cursor.** The system cursor stays, with the frost trail of D11. An ice-baton cursor was tried and
+  taken out after the next review: visitors would not recognise it as a pointer.
 
 ## D14. The jingle: the brand theme for logo moments
 The client's jingle (17.6 s, a working version) is the sound of the brand, not background music:

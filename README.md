@@ -3,8 +3,8 @@
 A showcase for the touring ice-musical repertoire, built with Next.js (App Router), TypeScript,
 Three.js / React Three Fiber, GSAP + ScrollTrigger, Lenis and the Web Audio API.
 
-- **Hero**: a glass figure skater, our own model built from the costume sketch, spinning on her blade in the stage light over real arena footage. Scroll scrubs the spin, drag or swipe spins her, and she turns slowly at rest. The first paint is a frame rendered from the scene itself, so she is the first thing on screen.
-- **Shows**: a pinned horizontal journey through all eight productions, each with its own accent light. Every show has its own page, reached through a blade-cut transition.
+- **Hero**: a glass figure skater, our own model built from the costume sketch, spinning on her blade on a glossy rink, seen past red stage curtains: the page opens on them shut, they part onto the logo's glass treble clef, which turns into her and back, over the logo's blade trace carved in the ice. Scroll scrubs the spin, drag or swipe spins her, and she turns slowly at rest. The first paint is a frame rendered from the scene itself, so she is the first thing on screen.
+- **Shows**: a row of all eight productions, each with its own accent light, browsed sideways with arrows or a swipe (never forced). Every show has its own page, reached through a blade-cut transition.
 - **Tour**: route map, schedule, filters, ice-break ticket buttons, and schema.org events for confirmed dates.
 - **Our music**: a player for the show soundtracks, plus the ice orchestra: eight detailed ice instruments (violin, cello, harp, grand piano, flute, horn, timpani, glockenspiel) each playing its own part of an original theme with real CC0 recordings. Keys press, bars light and strings vibrate with each note.
 - **Footer**: booking and press contacts, socials, language switch (EN; other languages to come).
@@ -260,15 +260,15 @@ src/lib/content.ts          shows, music, texts, settings: reading (with file fa
 src/lib/storage.ts, media.ts uploads: disk or Vercel Blob; processing with sharp and ffmpeg
 src/app/u/[...path]/        serves uploaded files from disk (Vercel Blob: proxied in next.config.ts)
 src/components/hero/        hero DOM + canvas; shaders/ (skater SDF, skirt, ice, beam, snow, spray)
-src/components/shows/       horizontal journey, show visual, show page
+src/components/shows/       shows row with arrows, show visual, show page
 src/components/tour/        server section (map projection, JSON-LD) + client view
 src/components/music/       player UI, ice orchestra (procedural instruments, ice/crack material)
-src/components/shell/       transitions (blade cut), ice baton cursor with frost trail, providers
+src/components/shell/       transitions (blade cut), frost trail behind the cursor, providers
 src/components/ui/          IceButton (cracks on hover, shatters on press)
 src/lib/audio/              engine.ts (single Web Audio graph), music.ts (show-track player), orchestra.ts (sampler + score)
 src/lib/                    spin state, quality tiers, data accessors, map projection
 src/data/                   shows.json, tour.json, music.json
-scripts/media/              hero.sh, shows.sh, music.sh: source → web assets, metadata stripped
+scripts/media/              hero-poster.sh, shows.sh, music.sh: source → web assets, metadata stripped
 scripts/build-map.mjs       pre-renders the map land layer
 scripts/audit.mjs           brand-separation audit → AUDIT.md
 ```
@@ -294,7 +294,7 @@ Measured on 2026-10-15:
 Real-device testing on mid-range phones is still to do.
 
 **Accessibility.**
-- `prefers-reduced-motion`: static figure, no scroll spin, no pin, native horizontal scroll in Shows, stills instead of loops, no ice baton cursor (the system cursor stays).
+- `prefers-reduced-motion`: static figure, no scroll spin, no pin, instant (not smooth) arrow steps in Shows, stills instead of loops, no frost trail behind the cursor.
 - Skip link.
 - Every interactive element is keyboard-reachable:
   - the hero responds to the arrow keys;

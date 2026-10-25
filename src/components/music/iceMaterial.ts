@@ -9,11 +9,11 @@ export interface IceUniforms {
 }
 
 /**
- * Carved ice. Mostly clear: it refracts what is behind it, throws sharp highlights and a thin
- * rainbow at its edges (dispersion), and its rims glow with light caught inside. Frosted, matte
- * patches drift through it, and the surface has the soft ripple of hand-carved, slightly melted
- * ice. Veins of light crack outward from where the instrument was touched, then breathe with its
- * layer of the music (they appear only while it is awake).
+ * Carved ice, not glass or silver. Clear cyan depth where you look straight in, deepening where the
+ * ice is thick; white frosted rims where the surface turns away; milky wisps and air bubbles inside
+ * that shift with the view; frosted patches and the soft ripple of hand-carved, slightly melted
+ * ice; light entering from the base. Veins of light crack outward from where the instrument was
+ * touched, then breathe with its layer of the music (they appear only while it is awake).
  */
 export function createIceMaterial(cheap: boolean) {
   const uniforms: IceUniforms = {
@@ -24,14 +24,14 @@ export function createIceMaterial(cheap: boolean) {
     uTime: { value: 0 },
   };
   const mat = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color("#eef9ff"),
-    roughness: 0.09, // clear ice; the frosted patches raise it in the shader
-    envMapIntensity: 2.6,
+    color: new THREE.Color("#d2f1ff"),
+    roughness: 0.12, // clear ice; the frosted patches raise it in the shader
+    envMapIntensity: 1.5,
     specularIntensity: 1,
     metalness: 0,
     ior: 1.31,
-    clearcoat: 1, // the wet skin on carved ice
-    clearcoatRoughness: 0.05,
+    clearcoat: 0.6, // the wet skin on carved ice
+    clearcoatRoughness: 0.12,
     emissive: new THREE.Color("#5cf2ff"),
     emissiveIntensity: 0,
     ...(cheap
@@ -39,8 +39,8 @@ export function createIceMaterial(cheap: boolean) {
       : {
           transmission: 0.84, // not glass: part of the light scatters in the ice and lights it up
           thickness: 0.55,
-          attenuationColor: new THREE.Color("#b6ecff"),
-          attenuationDistance: 1.4,
+          attenuationColor: new THREE.Color("#6fd0f2"), // thick ice turns deep cyan
+          attenuationDistance: 0.7,
         }),
   });
   mat.onBeforeCompile = (shader) => {
@@ -91,8 +91,8 @@ float crackEdge(vec3 p) {
       .replace(
         "#include <roughnessmap_fragment>",
         `#include <roughnessmap_fragment>
-float frost = smoothstep(0.64, 0.92, vn3(vLocalPos * 12.0 + 4.0)) * (0.5 + 0.5 * vn3(vLocalPos * 40.0));
-roughnessFactor = mix(roughnessFactor, 0.45, frost);`,
+float frost = smoothstep(0.6, 0.9, vn3(vLocalPos * 12.0 + 4.0)) * (0.5 + 0.5 * vn3(vLocalPos * 40.0));
+roughnessFactor = mix(roughnessFactor, 0.32, frost);`,
       )
       .replace(
         "#include <normal_fragment_maps>",
@@ -120,52 +120,36 @@ roughnessFactor = mix(roughnessFactor, 0.45, frost);`,
   totalEmissiveRadiance += ice * vein * reveal * uActive * (0.22 + uLevel * 2.4);
   totalEmissiveRadiance += vec3(1.0) * vein * front * 3.0;
   totalEmissiveRadiance += ice * uActive * uLevel * 0.22;
-  // light caught inside: the rims of carved ice glow (total internal reflection), brighter awake
-  float fr = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 3.0);
-  totalEmissiveRadiance += vec3(0.62, 0.92, 1.0) * fr * (0.24 + uActive * 0.3 + uLevel * 0.4);
-  // light scattered inside the body: carved ice is luminous, never dark glass
-  totalEmissiveRadiance += vec3(0.24, 0.52, 0.66) * (0.07 + 0.04 * vn3(vLocalPos * 3.0));
+  // ice, not glass or silver: clear cyan depth where you look straight in, white frosted rims
+  // where the surface turns away (light caught inside), milky wisps and air bubbles within
+  float fr = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.5);
+  totalEmissiveRadiance += vec3(0.03, 0.26, 0.44) * (1.0 - fr) * (0.11 + 0.05 * vn3(vLocalPos * 3.0));
+  totalEmissiveRadiance += vec3(0.72, 0.92, 1.0) * fr * (0.3 + uActive * 0.3 + uLevel * 0.4);
 
-  // what is inside the ice, seen through its depth (parallax: it shifts as the view moves):
-  // thin fracture sheets, a milky cloud that thickens with depth, and small air bubbles.
-  // March a few steps from the surface along the line of sight, in the instrument's own space.
+  // what is inside, seen through the depth (parallax: it shifts as the view moves). March a few
+  // steps from the surface along the line of sight, in the instrument's own space.
   {
     vec3 rd = normalize(vLocalView);
-    float sheets = 0.0, cloud = 0.0, bubbles = 0.0;
-    // fracture planes: where the line of sight crosses one inside the ice, a crisp silvery sheet
-    // (brightest seen edge-on), cut off irregularly so each crack ends somewhere
-    for (int k = 0; k < 3; k++) {
-      float fk = float(k);
-      vec3 n = normalize(h33(vec3(fk * 7.13, 1.31, 2.77)) - 0.5);
-      float c = (h33(vec3(fk * 3.7, 5.1, 9.3)).x - 0.5) * 0.5;
-      float dn = dot(rd, n);
-      float t = (c - dot(vLocalPos, n)) / (abs(dn) < 1e-3 ? 1e-3 : dn);
-      if (t > 0.0 && t < 0.09) {
-        vec3 hit = vLocalPos + rd * t;
-        float extent = smoothstep(0.42, 0.5, vn3(hit * 3.2 + fk * 11.0));
-        float edgeOn = pow(1.0 - abs(dn), 2.0);
-        sheets += extent * exp(-t * 18.0) * (0.25 + edgeOn * 0.9) * (0.7 + 0.3 * vn3(hit * 40.0));
-      }
-    }
+    float cloud = 0.0, bubbles = 0.0;
     for (int i = 1; i <= 3; i++) {
-      float d = float(i) * 0.022;
+      float d = float(i) * 0.025;
       vec3 q = vLocalPos + rd * d;
-      float w = exp(-d * 22.0);
-      cloud += smoothstep(0.52, 0.92, vn3(q * 6.5 + 5.0)) * (1.0 - w * 0.6);
-      vec3 cq = q * 85.0;
+      float w = exp(-d * 16.0);
+      // soft white wisps, stretched like the streaks frozen into block ice
+      float n = vn3(q * vec3(4.0, 8.0, 4.0) + 5.0) * 0.65 + vn3(q * 17.0 + 2.0) * 0.35;
+      cloud += smoothstep(0.5, 0.9, n) * w;
+      vec3 cq = q * 70.0;
       vec3 hb = h33(floor(cq) + 31.0);
-      bubbles += step(0.982, hb.x) * smoothstep(0.24, 0.06, length(fract(cq) - 0.5 - 0.3 * (hb.yzx - 0.5))) * w;
+      bubbles += step(0.975, hb.x) * smoothstep(0.26, 0.05, length(fract(cq) - 0.5 - 0.3 * (hb.yzx - 0.5))) * w;
     }
-    vec3 white = vec3(0.82, 0.95, 1.0);
-    totalEmissiveRadiance += white * (min(sheets, 1.5) * 0.5 + min(bubbles, 1.0) * 0.55);
-    // lit from its base like a festival ice sculpture: light enters at the bottom and fades upward,
-    // brightest where it meets cracks and edges
+    totalEmissiveRadiance += vec3(0.85, 0.96, 1.0) * (min(cloud, 1.5) * 0.09 + min(bubbles, 1.0) * 0.6);
+    // lit from its base like a festival ice sculpture: cyan light enters at the bottom and fades
+    // upward, brightest along the edges
     float base = exp(-max(vLocalPos.y, 0.0) * 1.8);
-    totalEmissiveRadiance += vec3(0.28, 0.72, 1.0) * base * (0.24 + min(sheets, 1.0) * 0.4 + fr * 0.4) * (0.8 + uActive * 0.6);
-    totalEmissiveRadiance += vec3(0.5, 0.78, 0.92) * (cloud / 3.0) * 0.14 * (1.0 - fr);
+    totalEmissiveRadiance += vec3(0.2, 0.66, 1.0) * base * (0.16 + fr * 0.35) * (0.8 + uActive * 0.6);
   }
   // fine frost reads white and soft
-  totalEmissiveRadiance += vec3(0.8, 0.93, 1.0) * frost * 0.07;
+  totalEmissiveRadiance += vec3(0.82, 0.94, 1.0) * frost * 0.16;
 }`,
       );
   };

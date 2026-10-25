@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
-  beamFragment,
-  beamVertex,
   glowFragment,
   iceFragment,
-  plateFragment,
+  arenaFragment,
+  curtainFragment,
+  ringFragment,
+  traceFragment,
   snowFragment,
   snowVertex,
   sprayFragment,
@@ -17,6 +18,18 @@ import {
 } from "./shaders/stage";
 import { LIGHT_BOTTOM, LIGHT_TOP, type StageUniforms } from "./uniforms";
 import { spin } from "@/lib/spin";
+import { heroScroll, pointer } from "@/lib/pointer";
+import { LOGO_SWOOSH } from "@/components/brand/logo";
+import { CURTAIN_TIME, MORPH_TOP, curtains, morph } from "./morph";
+
+/** 0 closed .. 1 parted to rest: eased from the cue (open from the start under reduced motion). */
+function curtainIntro() {
+  if (spin.still) return curtains.stillClosed ? 0 : 1;
+  if (spin.reduced) return 1;
+  if (curtains.cueAt < 0) return 0;
+  const t = Math.min(1, (performance.now() - curtains.cueAt) / 1000 / CURTAIN_TIME);
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
 
 export function Ice({ stage }: { stage: StageUniforms }) {
   const mat = useMemo(
@@ -32,11 +45,13 @@ export function Ice({ stage }: { stage: StageUniforms }) {
           uRimColor: stage.uRimColor,
           uFrost: { value: 0 },
           uPoolCenter: { value: new THREE.Vector3(LIGHT_BOTTOM.x, 0, LIGHT_BOTTOM.z) },
+          uAspect: { value: 16 / 9 },
         },
       }),
     [stage],
   );
-  useFrame((_, dt) => {
+  useFrame(({ camera }, dt) => {
+    mat.uniforms.uAspect.value = (camera as THREE.PerspectiveCamera).aspect;
     const target = Math.min(1, Math.max(0, (spin.speed - 3) / 8));
     const f = mat.uniforms.uFrost;
     f.value += (target - f.value) * (1 - Math.exp(-dt * (target > f.value ? 1.2 : 0.15)));
@@ -46,40 +61,6 @@ export function Ice({ stage }: { stage: StageUniforms }) {
       <planeGeometry args={[60, 60, 1, 1]} />
     </mesh>
   );
-}
-
-export function Beam({ stage, intensity = 0.16 }: { stage: StageUniforms; intensity?: number }) {
-  const geo = useMemo(() => {
-    const len = LIGHT_TOP.distanceTo(LIGHT_BOTTOM);
-    const g = new THREE.CylinderGeometry(0.05, 1.9, len, 64, 1, true);
-    g.translate(0, -len / 2, 0); // apex at origin
-    // uv.y: 1 at apex .. 0 at floor, flip so 0 = apex
-    const uv = g.attributes.uv as THREE.BufferAttribute;
-    for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i));
-    return g;
-  }, []);
-  const mat = useMemo(
-    () =>
-      new THREE.ShaderMaterial({
-        vertexShader: beamVertex,
-        fragmentShader: beamFragment,
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        uniforms: { uTime: stage.uTime, uRimColor: stage.uRimColor, uIntensity: { value: intensity } },
-      }),
-    [stage, intensity],
-  );
-  const ref = useRef<THREE.Mesh>(null);
-  useEffect(() => {
-    const m = ref.current;
-    if (!m) return;
-    m.position.copy(LIGHT_TOP);
-    const dir = LIGHT_BOTTOM.clone().sub(LIGHT_TOP).normalize();
-    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
-  }, []);
-  return <mesh ref={ref} geometry={geo} material={mat} renderOrder={6} />;
 }
 
 export function Glow({ stage }: { stage: StageUniforms }) {
@@ -97,10 +78,6 @@ export function Glow({ stage }: { stage: StageUniforms }) {
   );
   return (
     <group>
-      {/* halo behind the dancer: this is what turns her into a silhouette */}
-      <mesh position={[0, 1.35, -3.2]} material={mat} renderOrder={0}>
-        <planeGeometry args={[6.5, 5.5]} />
-      </mesh>
       {/* the lamp itself, up in the rig */}
       <mesh position={LIGHT_TOP.toArray()} material={mat} scale={0.22} renderOrder={0}>
         <planeGeometry args={[6.5, 5.5]} />
@@ -109,67 +86,23 @@ export function Glow({ stage }: { stage: StageUniforms }) {
   );
 }
 
-export function Plate({ src, poster }: { src: { webm: string; mp4: string }; poster: string }) {
-  const { camera, invalidate } = useThree();
+/** The drawn arena behind her (shaders/stage.ts arenaFragment): faces the camera and fills the
+ *  frame at a fixed distance, however the camera moves and tilts. */
+export function Arena({ stage }: { stage: StageUniforms }) {
+  const { camera } = useThree();
   const mat = useMemo(
     () =>
       new THREE.ShaderMaterial({
         vertexShader: worldVertex,
-        fragmentShader: plateFragment,
+        fragmentShader: arenaFragment,
         depthWrite: false,
-        uniforms: {
-          uMap: { value: null as THREE.Texture | null },
-          uOpacity: { value: 0.0 },
-          uTime: { value: 0 },
-          uAspect: { value: 16 / 9 },
-          uWin: { value: new THREE.Vector4(0.5, 0.64, 0.6, 0.22) },
-        },
+        uniforms: { uTime: stage.uTime, uAspect: { value: 16 / 9 } },
       }),
-    [],
+    [stage],
   );
-
-  useEffect(() => {
-    let disposed = false;
-    const img = new THREE.TextureLoader().load(poster, (t) => {
-      if (disposed) return;
-      if (!mat.uniforms.uMap.value) mat.uniforms.uMap.value = t;
-      if (spin.reduced || spin.still) mat.uniforms.uOpacity.value = 1;
-      invalidate(); // reduced motion renders on demand only
-    });
-    // reduced motion and poster capture use the still frame only (deterministic, no video)
-    if (spin.reduced || spin.still) return () => { disposed = true; img.dispose(); };
-    const video = document.createElement("video");
-    video.muted = true;
-    video.loop = true;
-    video.playsInline = true;
-    video.preload = "auto";
-    video.crossOrigin = "anonymous";
-    const canWebm = video.canPlayType('video/webm; codecs="vp9"') !== "";
-    video.src = canWebm ? src.webm : src.mp4;
-    const vt = new THREE.VideoTexture(video);
-    const onPlay = () => {
-      if (!disposed) mat.uniforms.uMap.value = vt;
-    };
-    video.addEventListener("playing", onPlay, { once: true });
-    video.play().catch(() => {});
-    return () => {
-      disposed = true;
-      video.pause();
-      video.removeAttribute("src");
-      video.load();
-      vt.dispose();
-      img.dispose();
-    };
-  }, [mat, src.webm, src.mp4, poster, invalidate]);
-
   const ref = useRef<THREE.Mesh>(null);
   const dir = useMemo(() => new THREE.Vector3(), []);
-  useFrame((_, dt) => {
-    const o = mat.uniforms.uOpacity;
-    o.value += ((mat.uniforms.uMap.value ? 1 : 0) - o.value) * (1 - Math.exp(-dt * 1.5));
-    // keep the plate filling the frame from wherever the camera is, however it tilts: it faces
-    // the camera at a fixed distance behind everything (the Director has already moved the camera
-    // this frame: it is mounted first)
+  useFrame(() => {
     const m = ref.current;
     if (!m) return;
     const cam = camera as THREE.PerspectiveCamera;
@@ -178,19 +111,146 @@ export function Plate({ src, poster }: { src: { webm: string; mp4: string }; pos
     m.position.copy(cam.position).addScaledVector(dir, dist);
     m.quaternion.copy(cam.quaternion);
     const fh = 2 * dist * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
-    // the plate fills the frame edge to edge on any screen (no black sides); the shader puts the
-    // footage in a soft window, smaller on phones, with a blurred copy of it all around
     m.scale.set(fh * cam.aspect * 1.02, fh * 1.02, 1);
     mat.uniforms.uAspect.value = cam.aspect;
-    const portrait = cam.aspect < 1;
-    // window bottom sits a little below the horizon, so the real rink runs on behind ours
-    const h = portrait ? 0.32 : 0.42;
-    mat.uniforms.uWin.value.set(0.5, (portrait ? 0.4 : 0.33) + h / 2, h, portrait ? 0.2 : 0.24);
   });
-
   return (
-    <mesh ref={ref} position={[0, 2, -18]} material={mat} renderOrder={-1} frustumCulled={false}>
+    <mesh ref={ref} material={mat} renderOrder={-1} frustumCulled={false}>
       <planeGeometry args={[1, 1]} />
+    </mesh>
+  );
+}
+
+/** The red stage curtains in front of the rink (shaders/stage.ts curtainFragment): drawn over the
+ *  frame just in front of the camera, so they frame the shot on any screen; scrolling draws them
+ *  out of the frame as the camera moves in. */
+export function Curtains({ stage }: { stage: StageUniforms }) {
+  const { camera } = useThree();
+  const mat = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        vertexShader: worldVertex,
+        fragmentShader: curtainFragment,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        uniforms: { uTime: stage.uTime, uAspect: { value: 16 / 9 }, uIntro: { value: 0 }, uOpen: { value: 0 }, uShift: { value: 0 } },
+      }),
+    [stage],
+  );
+  const ref = useRef<THREE.Mesh>(null);
+  const dir = useMemo(() => new THREE.Vector3(), []);
+  useFrame(() => {
+    const m = ref.current;
+    if (!m) return;
+    const cam = camera as THREE.PerspectiveCamera;
+    const dist = 0.5;
+    cam.getWorldDirection(dir);
+    m.position.copy(cam.position).addScaledVector(dir, dist);
+    m.quaternion.copy(cam.quaternion);
+    const fh = 2 * dist * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
+    m.scale.set(fh * cam.aspect * 1.02, fh * 1.02, 1);
+    const u = mat.uniforms;
+    u.uAspect.value = cam.aspect;
+    const p = THREE.MathUtils.clamp(heroScroll.progress / 0.45, 0, 1);
+    u.uOpen.value = p * p * (3 - 2 * p);
+    u.uIntro.value = curtainIntro();
+    u.uShift.value = -pointer.sx * 0.012;
+  });
+  return (
+    <mesh ref={ref} material={mat} renderOrder={30} frustumCulled={false}>
+      <planeGeometry args={[1, 1]} />
+    </mesh>
+  );
+}
+
+// the logo's swoosh, in its own artwork units: where her feet stand in it (between the strokes, so
+// it wraps round her), how wide it lies on the ice and how much deeper than in the artwork, so it
+// still reads from the low camera
+const TRACE = { x0: 160, x1: 2253, y0: 1147, y1: 1711, footX: 1152, footY: 1222, width: 2.7, depth: 1.7 };
+
+/** The blade trace from the logo carved into the ice round her feet. */
+export function Trace({ stage }: { stage: StageUniforms }) {
+  const { gl } = useThree();
+  const { mat, size, center } = useMemo(() => {
+    const w = TRACE.x1 - TRACE.x0, h = TRACE.y1 - TRACE.y0;
+    const c = document.createElement("canvas");
+    c.width = 2048;
+    c.height = Math.round((2048 * h) / w);
+    const ctx = c.getContext("2d")!;
+    const k = c.width / w;
+    ctx.setTransform(k, 0, 0, k, -TRACE.x0 * k, -TRACE.y0 * k);
+    const path = new Path2D(LOGO_SWOOSH);
+    // G: the glow (the shape blurred), R: the groove itself
+    ctx.filter = "blur(9px)";
+    ctx.fillStyle = "#00ff00";
+    ctx.fill(path);
+    ctx.filter = "none";
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "#ff0000";
+    ctx.fill(path);
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+    tex.colorSpace = THREE.NoColorSpace;
+    const m = new THREE.ShaderMaterial({
+      vertexShader: worldVertex,
+      fragmentShader: traceFragment,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: { uMap: { value: tex }, uTime: stage.uTime, uReveal: { value: 0 }, uWave: { value: 99 } },
+    });
+    const s = TRACE.width / w;
+    return {
+      mat: m,
+      size: [w * s, h * s * TRACE.depth] as const,
+      center: [((TRACE.x0 + TRACE.x1) / 2 - TRACE.footX) * s, ((TRACE.y0 + TRACE.y1) / 2 - TRACE.footY) * s * TRACE.depth] as const,
+    };
+  }, [stage, gl]);
+  useFrame((_, dt) => {
+    const u = mat.uniforms;
+    const target = curtainIntro() > 0.35 ? 12 : 0;
+    u.uReveal.value += (target - u.uReveal.value) * (1 - Math.exp(-dt * 0.9));
+    u.uWave.value = morph.startedAt < 0 ? 99 : (performance.now() - morph.startedAt) / 1000;
+  });
+  return (
+    <mesh rotation-x={-Math.PI / 2} position={[center[0], 0.004, center[1]]} material={mat} renderOrder={5.5}>
+      <planeGeometry args={[size[0], size[1]]} />
+    </mesh>
+  );
+}
+
+/** The ring of light that climbs the figure while it changes form. */
+export function MorphRing({ stage }: { stage: StageUniforms }) {
+  const mat = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        vertexShader: worldVertex,
+        fragmentShader: ringFragment,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        uniforms: { uTime: stage.uTime, uAlpha: { value: 0 } },
+      }),
+    [stage],
+  );
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    const m = ref.current;
+    if (!m) return;
+    const h = morph.line;
+    m.visible = h < MORPH_TOP;
+    if (!m.visible) return;
+    m.position.y = Math.max(0.01, h);
+    // fades in off the ice and out at the top; a little wider round the skirt
+    mat.uniforms.uAlpha.value = Math.min(1, (h + 0.05) / 0.25) * Math.min(1, (MORPH_TOP - h) / 0.35);
+    const r = 0.5 + 0.18 * Math.exp(-Math.pow((h - 1.0) * 2.5, 2));
+    m.scale.set(r, r, 1);
+  });
+  return (
+    <mesh ref={ref} rotation-x={-Math.PI / 2} material={mat} renderOrder={9} visible={false}>
+      <planeGeometry args={[2, 2]} />
     </mesh>
   );
 }

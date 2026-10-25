@@ -11,15 +11,27 @@ void main() {
 }
 `;
 
+// The main lighting rig hung far back over the rink, in frame units (height = 1, x scaled by the
+// aspect): drawn in the arena and mirrored in the ice, so both use this one layout.
+const rigGLSL = /* glsl */ `
+#define RIG_LAMPS 11
+float rigSpread(float aspect) { return max(aspect, 0.9); }
+float rigX(int i, float spread) { return (float(i) - 5.0) * 0.062 * spread; }
+float rigY(int i) { return 0.6 + abs(float(i) - 5.0) * 0.006; }
+float rigClear(float lx) { return smoothstep(0.07, 0.14, abs(lx)); }
+`;
+
 // Black ice: translucent enough to show the reflection, with the light pool from the back light,
 // blade scratches traced by the spin, frost from the spray and hard pin-point glints.
 export const iceFragment = /* glsl */ `
 precision highp float;
+${rigGLSL}
 uniform float uTime;
 uniform float uFrost;
 uniform float uAngle;
 uniform vec3 uRimColor;
 uniform vec3 uPoolCenter;
+uniform float uAspect;
 varying vec3 vWorld;
 ${noiseGLSL}
 
@@ -30,13 +42,15 @@ void main() {
   float graze = 1.0 - clamp(V.y, 0.0, 1.0);
 
   // a lit rink: pale blue-grey ice, brighter where the light pools, glossy toward the horizon
-  vec3 col = vec3(0.07, 0.16, 0.24);
-  col += vec3(0.05, 0.1, 0.14) * smoothstep(1.5, 9.0, -vWorld.z + 2.0);
+  vec3 col = vec3(0.06, 0.12, 0.18);
 
   // pool of the back light on the ice, behind the dancer
   vec2 q = (p - uPoolCenter.xz) * vec2(0.42, 0.75);
   float pool = exp(-dot(q, q) * 1.4);
-  col += vec3(0.3, 0.6, 0.78) * pool * 0.7;
+  col += vec3(0.3, 0.6, 0.78) * pool * 0.45;
+  // the rink in the spotlight: white-blue ice, brightest around her, fading toward the stands
+  float lit = exp(-r * r * 0.09);
+  col += vec3(0.42, 0.62, 0.76) * lit * 0.55;
   col += uRimColor * pow(pool, 6.0) * 0.35;
   // the blade's own small circle of light, so she visibly stands on the surface
   float under = exp(-r * r * 9.0);
@@ -54,14 +68,27 @@ void main() {
     float arc = smoothstep(0.1, 0.7, sin(atan(d2.y, d2.x) + fi * 2.1));
     traces += (1.0 - smoothstep(0.0, w, d)) * arc;
   }
-  traces = min(traces, 1.0) * 0.42;
+  traces = min(traces, 1.0) * 0.6;
   float frostTex = fbm(p * 2.2 + 7.0) * 0.6 + fbm(p * 13.0) * 0.4;
-  col += vec3(0.08, 0.13, 0.17) * frostTex;
+  col += vec3(0.16, 0.22, 0.27) * frostTex * (0.4 + lit * 0.8);
+  // the rig's lamps mirrored in the ice: a long streak under each, wider toward the viewer and
+  // broken up by the surface (in frame units at this depth, so they line up with the lamps)
+  float depth = max(cameraPosition.z - vWorld.z, 0.1);
+  float fh = 0.6306 * depth;    // frame height at this depth (fov 35)
+  float spread = rigSpread(uAspect);
+  float wid = mix(0.011, 0.0035, smoothstep(3.0, 14.0, depth));
+  float reach = smoothstep(2.5, 7.0, depth) * smoothstep(22.0, 12.0, depth);
+  for (int k = 0; k < RIG_LAMPS; k++) {
+    float lx = rigX(k, spread);
+    float dxs = ((vWorld.x - cameraPosition.x) / fh - lx) / wid;
+    float broken = 0.5 + 0.5 * vnoise(vec2(dxs * 2.0 + float(k) * 7.0, depth * 3.0));
+    col += vec3(0.62, 0.8, 0.95) * exp(-dxs * dxs) * broken * reach * rigClear(lx) * 0.4;
+  }
   // tight scratches carved by the spin
   float ang = atan(p.y, p.x);
   float ring = sin(r * 260.0 + vnoise(vec2(ang * 3.0, r * 8.0)) * 6.0);
   float scratches = smoothstep(0.93, 1.0, ring) * exp(-r * 3.2) * 0.9;
-  col += vec3(0.7, 0.9, 1.0) * (traces * (0.4 + pool) + scratches * (0.3 + pool));
+  col += vec3(0.8, 0.93, 1.0) * (traces * (0.35 + lit * 0.6 + pool) + scratches * (0.3 + pool));
 
   // frost thrown by the blade, a ring that builds while she spins fast
   float frost = smoothstep(0.15, 0.4, r) * (1.0 - smoothstep(0.5, 1.4, r)) * fbm(p * 9.0 + ang);
@@ -80,43 +107,11 @@ void main() {
   col += vec3(0.16, 0.3, 0.42) * pow(graze, 5.0);
 
   // translucent near her (her reflection shows through), solid ice further out
-  float alpha = mix(0.62, 0.96, smoothstep(0.4, 3.5, r));
+  float alpha = mix(0.72, 0.97, smoothstep(0.4, 3.5, r));
   alpha = max(alpha, pool * 0.7);
   // the rink dissolves into the arena far away
   float far = 1.0 - smoothstep(9.0, 17.0, length(vWorld - vec3(0.0, 0.0, -2.0)));
   gl_FragColor = vec4(col, alpha * far);
-}
-`;
-
-// Additive volumetric cone from the lighting rig behind and above the dancer.
-export const beamVertex = /* glsl */ `
-varying vec3 vWorld;
-varying vec3 vNormal;
-varying float vH;
-void main() {
-  vH = uv.y;
-  vec4 w = modelMatrix * vec4(position, 1.0);
-  vWorld = w.xyz;
-  vNormal = normalize(mat3(modelMatrix) * normal);
-  gl_Position = projectionMatrix * viewMatrix * w;
-}
-`;
-export const beamFragment = /* glsl */ `
-precision highp float;
-uniform float uTime;
-uniform float uIntensity;
-uniform vec3 uRimColor;
-varying vec3 vWorld;
-varying vec3 vNormal;
-varying float vH;
-${noiseGLSL}
-void main() {
-  vec3 V = normalize(cameraPosition - vWorld);
-  float facing = pow(abs(dot(normalize(vNormal), V)), 2.2);
-  float along = smoothstep(0.0, 0.35, vH) * smoothstep(1.0, 0.75, vH);
-  float haze = 0.6 + 0.4 * fbm(vec2(vWorld.x * 0.8 + uTime * 0.05, vWorld.y * 0.6 - uTime * 0.08));
-  float a = facing * along * haze * uIntensity;
-  gl_FragColor = vec4(mix(vec3(0.75, 0.9, 1.0), uRimColor, 0.35) * a, 1.0);
 }
 `;
 
@@ -138,51 +133,244 @@ void main() {
 }
 `;
 
-// Real arena footage far behind the stage, graded down and dissolved at the edges.
-export const plateFragment = /* glsl */ `
+// The arena behind her, drawn (no footage): a dark, deep hall. Far back over the rink hangs the
+// rig, a row of small bright spotlights each pouring a narrow cone onto the far ice; a farther row
+// glints higher up, the stands recede into the dark, a few warm lights blur at the far end. The
+// space right behind her stays darkest, so the glass skater stands out.
+export const arenaFragment = /* glsl */ `
 precision highp float;
-uniform sampler2D uMap;
-uniform float uOpacity;
 uniform float uTime;
-uniform float uAspect;   // frame width / height
-uniform vec4 uWin;       // footage window: centre x, centre y, height (frame units), feather
+uniform float uAspect;
 varying vec2 vUv;
-const float V = 16.0 / 9.0;
+${noiseGLSL}
 
-// the footage scaled to cover the whole frame, zoomed a little and blurred: colour and motion only
-vec3 coverBlur(vec2 uv) {
-  vec2 size = uAspect > V ? vec2(1.0, uAspect / V) : vec2(V / uAspect, 1.0);
-  vec2 t = (uv - 0.5) / (size * 1.25) + 0.5;
-  vec3 c = vec3(0.0);
-  float r = 0.035;
-  for (int i = 0; i < 12; i++) {
-    float a = float(i) * 2.39996;             // golden-angle spiral
-    float k = sqrt((float(i) + 0.5) / 12.0);
-    c += texture2D(uMap, clamp(t + vec2(cos(a), sin(a)) * r * k * vec2(1.0, V), 0.001, 0.999)).rgb;
-  }
-  return c / 12.0;
+${rigGLSL}
+
+// a spotlight seen from far away: a hot core, a soft bloom and a thin star of lens flare
+vec3 lamp(vec2 d, float size) {
+  float r2 = dot(d, d) / (size * size);
+  float core = exp(-r2 * 26000.0) * 1.8 + exp(-r2 * 1400.0) * 0.32 + exp(-r2 * 120.0) * 0.05;
+  float star = (exp(-abs(d.y) * 900.0 / size) * exp(-abs(d.x) * 38.0 / size) + exp(-abs(d.x) * 900.0 / size) * exp(-abs(d.y) * 60.0 / size)) * 0.22;
+  return vec3(0.88, 0.95, 1.0) * (core + star);
 }
 
 void main() {
   vec2 uv = vUv;
-  // the real arena in a window: smaller than the frame, so the skaters there read as far away
-  vec2 wsize = vec2(uWin.z * V / uAspect, uWin.z);
-  vec2 tw = (uv - uWin.xy) / wsize + 0.5;
-  vec2 f = vec2(uWin.w) / vec2(1.0, V);
-  float m = smoothstep(0.0, f.x, tw.x) * smoothstep(1.0, 1.0 - f.x, tw.x) * smoothstep(0.0, f.y, tw.y) * smoothstep(1.0, 1.0 - f.y, tw.y);
-  vec3 sharp = texture2D(uMap, clamp(tw, 0.001, 0.999)).rgb;
-  vec3 bg = vec3(0.043, 0.114, 0.18);         // page colour (#0b1d2e)
-  vec3 haze = vec3(0.36, 0.62, 0.86);
-  // the blurred surround is mostly light and colour: haze takes the shapes out of it
-  vec3 c = mix(mix(coverBlur(uv), haze * 0.85, 0.32), sharp, m);
+  vec2 p = vec2((uv.x - 0.5) * uAspect, uv.y);    // frame units, x scaled by aspect
+  float horizon = 0.41;
+  float spread = rigSpread(uAspect);
 
-  // kept bright and ice-blue, a step back from the glass skater: a cool haze, softer contrast
-  float l = dot(c, vec3(0.299, 0.587, 0.114));
-  c = mix(vec3(l) * vec3(0.62, 0.84, 1.06), c, 0.7);
-  c = mix(c, haze, 0.2 - 0.06 * m) * 0.8;
-  // the top edge melts into the page colour
-  c = mix(bg, c, smoothstep(1.0, 0.84, uv.y) * uOpacity);
+  // the hall: deep blue, darker high up
+  vec3 c = mix(vec3(0.035, 0.07, 0.12), vec3(0.01, 0.022, 0.045), smoothstep(horizon, 1.0, uv.y));
+
+  // the stands: rows curving round the rink up into the dark, full of small lights like a hall
+  // before the show (seat lights, phone screens, exit signs), denser and dimmer further up
+  float above = uv.y - horizon;
+  if (above > 0.0 && above < 0.5) {
+    float bow = above + p.x * p.x * 0.035;
+    float rows = smoothstep(0.35, 0.5, fract(bow * 62.0)) * 0.5 + 0.5;
+    float fade = smoothstep(0.5, 0.04, above) * smoothstep(0.0, 0.03, above);
+    c += vec3(0.016, 0.032, 0.05) * rows * fade;
+    for (int l = 0; l < 2; l++) {
+      float sc = l == 0 ? 90.0 : 170.0;    // near rows, then a finer, farther layer
+      vec2 g = vec2(p.x * sc, bow * sc * 0.69);
+      vec2 cell = floor(g);
+      float h = hash12(cell + float(l) * 17.0);
+      float tw = 0.65 + 0.35 * sin(uTime * (0.4 + h * 1.6) + h * 40.0);
+      float dotMask = smoothstep(0.34, 0.0, length(fract(g) - 0.5 - (vec2(hash12(cell + 3.1), hash12(cell + 7.7)) - 0.5) * 0.4));
+      vec3 hue = mix(vec3(0.55, 0.78, 1.0), vec3(1.0, 0.8, 0.52), step(0.55, fract(h * 7.0)));
+      float on = step(l == 0 ? 0.86 : 0.8, h);
+      c += hue * on * dotMask * tw * fade * (l == 0 ? 0.9 : 0.5) * (0.45 + 0.55 * fract(h * 13.0));
+    }
+  }
+  // balcony fronts: two bright rows of small warm lamps curving round the hall
+  for (int r = 0; r < 2; r++) {
+    float by = r == 0 ? 0.53 : 0.79;
+    float yb = by + p.x * p.x * (r == 0 ? 0.05 : 0.08);
+    float n = r == 0 ? 42.0 : 56.0;
+    vec2 q = vec2((fract(p.x * n) - 0.5) / n, uv.y - yb);
+    float lampDot = exp(-dot(q, q) * (r == 0 ? 260000.0 : 420000.0));
+    c += vec3(1.0, 0.84, 0.6) * lampDot * (r == 0 ? 1.1 : 0.7);
+    c += vec3(0.5, 0.36, 0.22) * exp(-q.y * q.y * 12000.0) * 0.03;    // the glow they lay on the rail
+  }
+  // the far end of the rink glows where the light lands, with a few warm lights blurred by distance
+  c += vec3(0.07, 0.17, 0.26) * exp(-pow((uv.y - horizon) * 20.0, 2.0));
+  for (int i = 0; i < 4; i++) {
+    float fi = float(i);
+    vec2 b = vec2((fi < 2.0 ? -1.0 : 1.0) * (0.22 + mod(fi, 2.0) * 0.17) * spread, horizon + 0.035 + mod(fi * 0.37, 0.05));
+    vec2 d = p - b;
+    c += vec3(1.0, 0.55, 0.22) * exp(-dot(d, d) * 2200.0) * 0.16;
+  }
+
+  // the far rig: higher, smaller, dimmer
+  for (int i = 0; i < 15; i++) {
+    float fi = float(i) - 7.0;
+    float lx = fi * 0.045 * spread;
+    vec2 d = p - vec2(lx, 0.705 + abs(fi) * 0.003);
+    c += lamp(d, 0.5) * 0.45 * rigClear(lx);
+  }
+  // the main rig, far back over the rink: each lamp pours a narrow cone down onto the ice
+  for (int i = 0; i < RIG_LAMPS; i++) {
+    float lx = rigX(i, spread);
+    vec2 at = vec2(lx, rigY(i));
+    float clear = rigClear(lx);    // nothing straight behind her
+    vec2 d = p - at;
+    c += lamp(d, 1.0) * clear;
+    float along = -d.y;
+    float across = abs(d.x + d.y * lx * 0.12);
+    float width = 0.004 + along * 0.11;
+    float cone = smoothstep(width, 0.0, across) * smoothstep(0.0, 0.03, along) * smoothstep(at.y - horizon + 0.01, 0.02, along);
+    float haze = 0.6 + 0.4 * fbm(vec2(p.x * 4.0 + uTime * 0.04, p.y * 3.0 - uTime * 0.05));
+    c += vec3(0.35, 0.55, 0.75) * cone * haze * 0.22 * clear;
+    // where the cone lands, a pool on the far ice
+    vec2 q = (p - vec2(lx * 1.04, horizon + 0.004)) * vec2(1.0, 7.0);
+    c += vec3(0.4, 0.62, 0.8) * exp(-dot(q, q) * 160.0) * 0.3 * clear;
+  }
+
+  // darkest right behind her: the space her figure is drawn against
+  float behind = exp(-pow(p.x * 2.4, 2.0) - pow((uv.y - 0.62) * 2.6, 2.0));
+  c *= 1.0 - 0.45 * behind;
   gl_FragColor = vec4(c, 1.0);
+}
+`;
+
+// The stage curtains in front of the rink: deep red velvet, parted a little, so the visitor looks
+// past them onto the ice. Drawn over the frame (camera-facing, like the arena): they keep framing
+// the shot on any screen, narrower on phones. Heavy folds gather toward the floor, the pile
+// catches a rosy sheen where it turns to the stage light, the hems are mirrored in the ice and the
+// curtains throw a soft shadow inward. Scrolling draws them out of the frame.
+export const curtainFragment = /* glsl */ `
+precision highp float;
+uniform float uTime;
+uniform float uAspect;
+uniform float uIntro;   // 0 closed (the page opens on them) .. 1 parted to rest
+uniform float uOpen;    // 0 at rest (just parted) .. 1 drawn out of the frame
+uniform float uShift;   // a touch of parallax with the pointer
+varying vec2 vUv;
+${noiseGLSL}
+
+float k;    // 0 portrait .. 1 wide screen
+
+// inner edge of a curtain (0 frame centre .. 1 frame edge) at height y: tied back low, it sweeps in
+// toward the top
+float edgeAt(float y, float side) {
+  float uBot = mix(0.82, 0.6, k);
+  float uTop = mix(0.66, 0.34, k);
+  float e = mix(uBot, uTop, pow(clamp(y, 0.0, 1.0), 0.8));
+  e += sin(y * 6.0 + uTime * 0.45 + side * 2.3) * 0.004;
+  e = mix(-0.004, e, uIntro);    // closed: the two meet in the middle
+  return mix(e, 1.12, uOpen);
+}
+
+// the velvet at (u, y) for a curtain whose inner edge is at e; fold height out
+vec3 velvet(float u, float y, float e, float side, out float fold) {
+  float w = (u - e) / max(1.03 - e, 0.03);    // 0 at the inner edge .. 1 at the frame edge
+  float n = mix(3.2, 4.6, k);
+  // folds of uneven width that wander a little down the drop
+  float ph = w * n + 1.1 * vnoise(vec2(w * 2.3 + side * 9.0, y * 0.9)) + 0.3 * vnoise(vec2(w * 7.0 + side * 3.0, y * 2.6));
+  ph += sin(uTime * 0.3 + y * 2.0 + side) * 0.05;
+  float s = sin(ph * 6.2832), c = cos(ph * 6.2832);
+  fold = s;
+  // rounded crowns, narrow deep creases
+  float crown = smoothstep(-0.85, 0.7, s);
+  // light: spill from the stage on the inner side, bounce from the ice low down, dark high and out
+  float light = (0.42 + 0.58 * exp(-w * 1.7)) * (0.62 + 0.5 * smoothstep(0.85, 0.08, y));
+  light *= 0.9 + 0.1 * vnoise(vec2(w * 30.0, y * 5.0));    // the pile is never even
+  vec3 col = mix(vec3(0.045, 0.002, 0.008), vec3(0.6, 0.04, 0.065), crown) * light;
+  // velvet sheen: a bright line along each crown, leaning toward the stage, and a rosy glow on
+  // the flank turned to the light
+  float line = pow(max(0.0, sin(ph * 6.2832 + 0.75)), 5.0);
+  float flank = pow(max(c, 0.0), 3.0);
+  col += vec3(0.95, 0.26, 0.3) * (line * 0.3 + flank * 0.16) * light;
+  // the rolled leading edge catches the cold stage light
+  float lead = exp(-(u - e) * 70.0);
+  col += mix(vec3(0.9, 0.3, 0.32), vec3(0.7, 0.85, 1.0), 0.25) * lead * 0.35 * light;
+  return col;
+}
+
+void main() {
+  k = smoothstep(0.6, 1.6, uAspect);
+  float x = (vUv.x - 0.5) * 2.0 + uShift;
+  float side = x < 0.0 ? -1.0 : 1.0;
+  float u = abs(x);
+  float y = vUv.y;
+  if (u < min(edgeAt(1.0, side), edgeAt(0.0, side)) - 0.2) discard;    // the open middle: nothing to draw
+
+  float aa = fwidth(u) * 1.2;
+  float e = edgeAt(y, side);
+  float fold;
+  vec3 col = velvet(u, y, e, side, fold);
+  // the hem: lifted toward the inner edge where the curtain is tied back, scalloped by the folds
+  float w = (u - e) / max(1.03 - e, 0.03);
+  float hem = mix(0.13, 0.05, k) + 0.035 * exp(-w * 3.5) - 0.008 * fold;
+  col *= 0.7 + 0.3 * smoothstep(hem, hem + 0.02, y);
+  float cover = smoothstep(e - aa, e + aa, u) * smoothstep(hem - aa, hem + aa, y);
+
+  // a soft shadow thrown inward onto the scene
+  float shadow = 0.5 * exp(-max(e - u, 0.0) * 9.0) * smoothstep(hem - 0.06, hem + 0.05, y) * (1.0 - uOpen);
+
+  // the hem mirrored in the ice below it, rippled and fading
+  float below = hem - y;
+  float refl = 0.0;
+  vec3 rcol = vec3(0.0);
+  if (below > 0.0) {
+    float y2 = hem + below * 1.3;
+    float u2 = u + sin(y * 160.0 + uTime) * 0.002;
+    float e2 = edgeAt(y2, side);
+    float f2;
+    rcol = velvet(u2, y2, e2, side, f2) * 0.8;
+    refl = smoothstep(e2 - aa, e2 + aa, u2) * exp(-below * 14.0) * 0.4;
+  }
+
+  // composite: curtain over its reflection over the shadow (premultiplied, then back)
+  vec3 pc = col * cover + rcol * refl * (1.0 - cover);
+  float a = cover + refl * (1.0 - cover);
+  a += shadow * (1.0 - a);
+  if (a < 0.002) discard;
+  gl_FragColor = vec4(pc / a, a);
+}
+`;
+
+// The blade trace from the logo (its swoosh), carved into the ice around her: a bright groove with
+// a soft glow (R = the shape, G = it blurred, from a canvas), glinting here and there; it fades in
+// as the curtains part, and a wave of light runs out along it each time the figure changes.
+export const traceFragment = /* glsl */ `
+precision highp float;
+uniform sampler2D uMap;
+uniform float uTime;
+uniform float uReveal;
+uniform float uWave;    // seconds since the figure began to change (large = no wave)
+varying vec2 vUv;
+varying vec3 vWorld;
+${noiseGLSL}
+void main() {
+  vec2 m = texture2D(uMap, vUv).rg;
+  float r = length(vWorld.xz);
+  float glint = step(0.985, hash12(floor(vWorld.xz * 160.0))) * (0.5 + 0.5 * sin(uTime * 3.0 + hash12(floor(vWorld.xz * 160.0) + 3.0) * 40.0));
+  float wave = exp(-pow((r - uWave * 1.6) * 3.0, 2.0)) * exp(-uWave * 0.8);
+  float show = smoothstep(0.0, 0.25, uReveal - r * 0.12);    // spreads outward from her feet
+  vec3 col = vec3(0.86, 0.96, 1.0) * m.r * (0.55 + glint * 1.6 + wave * 2.0) + vec3(0.36, 0.86, 1.0) * m.g * (0.22 + wave * 0.9);
+  gl_FragColor = vec4(col * show, 1.0);
+}
+`;
+
+// The line of light that climbs the figure while it changes form: a thin ring on the ice plane,
+// lifted to the line's height, with a soft halo and sparks running round it.
+export const ringFragment = /* glsl */ `
+precision highp float;
+uniform float uTime;
+uniform float uAlpha;
+varying vec2 vUv;
+${noiseGLSL}
+void main() {
+  vec2 p = vUv * 2.0 - 1.0;
+  float r = length(p);
+  float a = atan(p.y, p.x);
+  float ring = exp(-pow((r - 0.72) * 22.0, 2.0));
+  float halo = exp(-pow((r - 0.6) * 4.0, 2.0)) * 0.3;
+  float sparks = pow(vnoise(vec2(a * 9.0 + uTime * 6.0, uTime * 2.0)), 6.0) * 3.0 * exp(-pow((r - 0.72) * 9.0, 2.0));
+  vec3 col = vec3(0.85, 0.97, 1.0) * ring + vec3(0.36, 0.9, 1.0) * (halo + sparks);
+  gl_FragColor = vec4(col * uAlpha * smoothstep(1.0, 0.85, r), 1.0);
 }
 `;
 

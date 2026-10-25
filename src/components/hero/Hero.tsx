@@ -11,12 +11,13 @@ import type { Dictionary } from "@/i18n";
 import { audio } from "@/lib/audio/engine";
 import { jingle, JINGLE_SWEEP } from "@/lib/audio/jingle";
 import { WORDMARK_LETTERS, WORDMARK_VIEWBOX } from "./wordmark";
+import { cueCurtains, onCurtainCue } from "./morph";
 
 const HeroCanvas = dynamic(() => import("./HeroCanvas"), { ssr: false });
 
 const TURNS_PER_HERO = 4.5;
 // bump when the poster frames are re-rendered (they keep their names)
-const POSTER_V = "?v=6";
+const POSTER_V = "?v=8";
 
 /** The title in the logo's own letterforms (vector shapes from the logo artwork), one group per
  *  letter so the scroll can pull them apart. */
@@ -37,6 +38,7 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
   const stageRef = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState(false);
   const [boot, setBoot] = useState(false);
+  const [cued, setCued] = useState(false);
   const visible = useInView(section, "10% 0px");
 
   // build the WebGL scene only after the first paint has landed and the main thread is idle,
@@ -51,6 +53,9 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
     return () => window.removeEventListener("load", start);
   }, []);
 
+  // the curtains part on the Enter screen's door opening (or below, once the scene is ready)
+  useEffect(() => onCurtainCue(() => setCued(true)), []);
+
   // she spins to the jingle: a push on the opening sweep and on each bright chime
   useEffect(() => jingle.onAccent((t) => impulse(t === JINGLE_SWEEP ? 9 : 5)), []);
 
@@ -62,6 +67,8 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
   const ready = () => {
     setLive(true);
     onReady();
+    // no Enter screen (a revisit): the curtains part as soon as the stage is there
+    if (!("gate" in document.documentElement.dataset)) cueCurtains();
   };
 
   // scroll: scrubs the turn, sinks the camera, pulls the title apart
@@ -145,9 +152,26 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
             alt=""
             width={1920}
             height={1080}
-            fetchPriority="high"
             className="absolute inset-0 h-full w-full object-cover"
             style={{ opacity: live ? 0 : 1, transition: "opacity 0.9s ease 0.3s" }}
+          />
+        </picture>
+        {/* the page opens on closed curtains (the same frame, rendered shut); they part in the live
+            scene, or, without it, this layer fades to the parted frame below */}
+        <picture className="motion-reduce:hidden">
+          <source media="(orientation: portrait)" srcSet={`/media/hero/curtain-portrait.avif${POSTER_V}`} type="image/avif" />
+          <source media="(orientation: portrait)" srcSet={`/media/hero/curtain-portrait.webp${POSTER_V}`} type="image/webp" />
+          <source media="(orientation: portrait)" srcSet={`/media/hero/curtain-portrait.jpg${POSTER_V}`} />
+          <source srcSet={`/media/hero/curtain-landscape.avif${POSTER_V}`} type="image/avif" />
+          <source srcSet={`/media/hero/curtain-landscape.webp${POSTER_V}`} type="image/webp" />
+          <img
+            src={`/media/hero/curtain-landscape.jpg${POSTER_V}`}
+            alt=""
+            width={1920}
+            height={1080}
+            fetchPriority="high"
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ opacity: live || cued ? 0 : 1, transition: live ? "opacity 0.9s ease 0.3s" : "opacity 1.6s ease" }}
           />
         </picture>
 
@@ -155,7 +179,7 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
           ref={stageRef}
           tabIndex={0}
           role="img"
-          aria-label={`${t.drag}. A skater in silhouette spins on glowing ice. Left and right arrow keys spin her.`}
+          aria-label={`${t.drag}. Past red stage curtains, a glass treble clef spins on the ice and turns into a skater, and back. Left and right arrow keys spin her.`}
           onKeyDown={onKey}
           className="absolute inset-0 cursor-grab touch-pan-y outline-none active:cursor-grabbing"
           style={{ opacity: live ? 1 : 0, transition: "opacity 0.5s ease" }}

@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useEffect, useRef, useState } from "react";
 import type { Show } from "@/lib/data";
 import { ShowVisual } from "./ShowVisual";
 import { BladeLink } from "../shell/Transition";
-import { useLenis } from "../SmoothScroll";
 import type { Dictionary } from "@/i18n";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -61,92 +58,80 @@ export function ShowsSection({ t, shows }: { t: Dictionary["shows"]; shows: Show
   const section = useRef<HTMLElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const progress = useRef<HTMLSpanElement>(null);
-  const lenis = useLenis();
-  const lenisRef = useRef(lenis);
-  useEffect(() => {
-    lenisRef.current = lenis;
-  }, [lenis]);
+  const [ends, setEnds] = useState({ start: true, end: false });
 
+  // An ordinary row: the page scrolls on down past it, and the visitor browses sideways only if
+  // they want to (arrows, swipe, trackpad). As it moves, the footage drifts against the travel,
+  // the bar shows how far along it is, and the section light takes the colour of the show nearest
+  // the middle.
   useEffect(() => {
     const el = section.current;
     const tr = track.current;
     if (!el || !tr) return;
-    const mm = gsap.matchMedia();
-    mm.add("(min-width: 768px) and (prefers-reduced-motion: no-preference)", () => {
-      const distance = () => tr.scrollWidth - window.innerWidth;
-      const extras: (gsap.core.Tween | ScrollTrigger)[] = [];
-      let released = false;
-      // filled in below; the callbacks may fire while the tween is still being created
-      const ref: { move?: gsap.core.Tween } = {};
-      // The sideways travel happens once. After the visitor has scrolled through all the shows,
-      // the section stops being pinned: the strip stays where it ended, as an ordinary row that
-      // can be swiped sideways, and scrolling back up is plain vertical scrolling.
-      const release = () => {
-        const move = ref.move;
-        if (released || !move?.scrollTrigger) return;
-        released = true;
-        const st = move.scrollTrigger;
-        const pinned = st.end - st.start;
-        const y = window.scrollY;
-        move.progress(1);
-        const x = distance();
-        extras.forEach((e) => e.kill());
-        st.kill(true);
-        move.kill();
-        gsap.set(tr, { clearProps: "transform" });
-        tr.style.overflowX = "auto";
-        tr.scrollLeft = x;
-        if (progress.current) progress.current.style.transform = "scaleX(1)";
-        // the page is now shorter by the pinned distance: keep the same content in view
-        const target = Math.max(0, y - pinned);
-        if (lenisRef.current) lenisRef.current.scrollTo(target, { immediate: true, force: true });
-        else window.scrollTo(0, target);
-        ScrollTrigger.refresh();
-      };
-      const move = (ref.move = gsap.to(tr, {
-        x: () => -distance(),
-        ease: "none",
-        scrollTrigger: {
-          trigger: el,
-          start: "top top",
-          end: () => `+=${distance()}`,
-          pin: true,
-          scrub: 0.8,
-          invalidateOnRefresh: true,
-          anticipatePin: 1,
-          onUpdate: (self) => {
-            if (progress.current) progress.current.style.transform = `scaleX(${self.progress})`;
-          },
-          onLeave: () => release(),
-        },
-      }));
-      // footage drifts against the travel; the section light takes the colour of the show in front
-      gsap.utils.toArray<HTMLElement>("[data-panel]", el).forEach((panel) => {
-        const media = panel.querySelector("[data-parallax]");
-        if (media)
-          extras.push(
-            gsap.fromTo(media, { xPercent: 7 }, {
-              xPercent: -7,
-              ease: "none",
-              scrollTrigger: { trigger: panel, containerAnimation: move, start: "left right", end: "right left", scrub: true },
-            }),
-          );
-        extras.push(ScrollTrigger.create({
-          trigger: panel,
-          containerAnimation: move,
-          start: "left 60%",
-          end: "right 60%",
-          onToggle: (self) => self.isActive && el.style.setProperty("--glow", panel.dataset.accent ?? "#5cf2ff"),
-        }));
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const max = tr.scrollWidth - tr.clientWidth;
+      const x = tr.scrollLeft;
+      if (progress.current) progress.current.style.transform = `scaleX(${max > 0 ? x / max : 0})`;
+      setEnds((e) => {
+        const next = { start: x < 8, end: x > max - 8 };
+        return e.start === next.start && e.end === next.end ? e : next;
       });
-      // arriving with the page already scrolled past the shows (back button, a #tour link): no travel
-      requestAnimationFrame(() => {
-        const st = move.scrollTrigger;
-        if (st && st.scroll() > st.end) release();
+      const mid = window.innerWidth * 0.6;
+      let best: HTMLElement | null = null;
+      let bestD = Infinity;
+      tr.querySelectorAll<HTMLElement>("[data-panel]").forEach((panel) => {
+        const r = panel.getBoundingClientRect();
+        const c = r.left + r.width / 2;
+        if (Math.abs(c - mid) < bestD) {
+          bestD = Math.abs(c - mid);
+          best = panel;
+        }
+        const media = panel.querySelector<HTMLElement>("[data-parallax]");
+        if (media && !reduced) {
+          const k = Math.max(-1, Math.min(1, (c - window.innerWidth / 2) / window.innerWidth));
+          media.style.transform = `translate3d(${k * 7}%, 0, 0)`;
+        }
       });
-    });
-    return () => mm.revert();
+      const lead = (best as HTMLElement | null)?.dataset.accent;
+      el.style.setProperty("--glow", lead && x > 8 ? lead : "#5cf2ff");
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    tr.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      tr.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
+
+  /** One show along: to the next snap position past the current one (panels snap to their
+   *  centre on phones, to their start on wider screens). */
+  const step = (dir: 1 | -1) => {
+    const tr = track.current;
+    if (!tr) return;
+    const items = Array.from(tr.children) as HTMLElement[];
+    const pad = parseFloat(getComputedStyle(tr).scrollPaddingLeft) || 0;
+    const x = tr.scrollLeft;
+    const stops = items
+      .map((c) => {
+        const align = getComputedStyle(c).scrollSnapAlign;
+        if (align.includes("center")) return c.offsetLeft + c.offsetWidth / 2 - tr.clientWidth / 2;
+        return align.includes("start") ? c.offsetLeft - pad : NaN;
+      })
+      .filter((l) => l >= 0);
+    const target = dir > 0 ? stops.find((l) => l > x + 8) : [...stops].reverse().find((l) => l < x - 8);
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    tr.scrollTo({ left: target ?? (dir > 0 ? tr.scrollWidth : 0), behavior });
+  };
+
+  const arrow = "pointer-events-auto grid h-12 w-12 place-items-center rounded-full border border-mist/60 bg-ink/60 text-ice backdrop-blur transition-[opacity,border-color,background-color] duration-300 hover:border-ice hover:bg-deep/80 disabled:pointer-events-none disabled:opacity-25 md:h-14 md:w-14";
 
   return (
     <section
@@ -165,7 +150,8 @@ export function ShowsSection({ t, shows }: { t: Dictionary["shows"]; shows: Show
 
       <div
         ref={track}
-        className="relative flex snap-x snap-mandatory scroll-px-[var(--gutter)] gap-6 overflow-x-auto px-[var(--gutter)] pb-14 pt-28 [scrollbar-width:none] md:h-full md:snap-none md:gap-0 md:overflow-visible md:p-0 md:motion-reduce:snap-x md:motion-reduce:overflow-x-auto [&::-webkit-scrollbar]:hidden"
+        id="shows-track"
+        className="relative flex snap-x snap-mandatory scroll-px-[var(--gutter)] gap-6 overflow-x-auto overscroll-x-contain px-[var(--gutter)] pb-24 pt-28 [scrollbar-width:none] md:h-full md:snap-proximity md:gap-0 md:p-0 md:scroll-px-0 [&::-webkit-scrollbar]:hidden"
       >
         {/* intro panel */}
         <header className="flex w-[84vw] shrink-0 snap-start flex-col justify-center md:w-[46vw] md:pl-[var(--gutter)] md:pr-[4vw]">
@@ -182,16 +168,24 @@ export function ShowsSection({ t, shows }: { t: Dictionary["shows"]; shows: Show
           </p>
         </header>
         {shows.map((s, i) => (
-          <div key={s.slug} className="w-[84vw] shrink-0 snap-center md:w-auto">
+          <div key={s.slug} className="w-[84vw] shrink-0 snap-center md:w-auto md:snap-start">
             <Panel show={s} i={i} t={t} />
           </div>
         ))}
         <div aria-hidden className="w-[8vw] shrink-0" />
       </div>
 
-      {/* travel progress */}
-      <div aria-hidden className="absolute bottom-8 left-[var(--gutter)] right-[var(--gutter)] hidden h-px bg-deep md:block">
-        <span ref={progress} className="block h-full origin-left scale-x-0 bg-ice" />
+      {/* arrows and how far along the row is */}
+      <div className="pointer-events-none absolute bottom-6 left-[var(--gutter)] right-[var(--gutter)] z-20 flex items-center gap-4 md:bottom-8 md:gap-6">
+        <button type="button" className={arrow} onClick={() => step(-1)} disabled={ends.start} aria-label={t.prevShow} aria-controls="shows-track">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <span aria-hidden className="relative block h-px flex-1 bg-deep">
+          <span ref={progress} className="absolute inset-0 block origin-left scale-x-0 bg-ice" />
+        </span>
+        <button type="button" className={arrow} onClick={() => step(1)} disabled={ends.end} aria-label={t.nextShow} aria-controls="shows-track">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M9 5l7 7-7 7" /></svg>
+        </button>
       </div>
     </section>
   );

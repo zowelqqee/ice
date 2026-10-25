@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Hero posters: frames rendered from the live 3D scene at its start pose, so the skater is the very
 # first thing on screen and the scene takes over invisibly.
-#   1. run the dev server and capture http://localhost:3000/?still (page UI hidden, pose frozen)
-#      at 1920x1080 @1.5x (landscape) and 390x844 @3x (portrait), e.g. with headless Chrome;
-#   2. scripts/media/hero-poster.sh <landscape.png> <portrait.png>
+# The page opens on the curtains shut (curtain-*), then they part onto the skater (skater-*).
+#   1. run the dev server and capture http://localhost:3000/?still (page UI hidden, pose frozen,
+#      curtains parted) and ?still=closed (curtains shut) at 1920x1080 @1.5x (landscape) and
+#      390x844 @3x (portrait), e.g. with headless Chrome;
+#   2. scripts/media/hero-poster.sh <landscape.png> <portrait.png> <closed-landscape.png> <closed-portrait.png>
 set -euo pipefail
 OUT="$(cd "$(dirname "$0")/../.." && pwd)/public/media/hero"
 TMP="$(mktemp -d)"
@@ -18,4 +20,6 @@ encode() { # <src> <name> <width>
 }
 encode "$1" skater-landscape 1920
 encode "$2" skater-portrait 900
-ls -la "$OUT"/skater-*
+encode "$3" curtain-landscape 1920
+encode "$4" curtain-portrait 900
+ls -la "$OUT"/skater-* "$OUT"/curtain-*
