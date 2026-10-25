@@ -105,7 +105,7 @@ function lathe(profile: [number, number][], seg = 48) {
 }
 
 /** A slender ice pedestal from the floor up to just under a floating instrument. */
-function pedestal(ice: THREE.BufferGeometry, shrink = 1) {
+export function pedestal(ice: THREE.BufferGeometry, shrink = 1) {
   ice.computeBoundingBox();
   const b = ice.boundingBox!;
   const c = b.getCenter(new THREE.Vector3());

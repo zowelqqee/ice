@@ -134,3 +134,13 @@ The client's jingle (17.6 s, a working version) is the sound of the brand, not b
 - **Not a background loop**: 17 s on repeat tires fast, would clash with the show tracks and the
   orchestra, and browsers allow no sound before a click anyway. The jingle stops when a show track
   or the orchestra starts, and they stop it.
+
+## D15. Orchestra shapes from CC0 models
+The code-built instruments read as toys next to the skater. Piano, harp, violin with bow, cello
+and French horn now take their shapes from public-domain (CC0) models, prepared in Blender and
+compressed (1.3 MB for all, loaded only near the section); sources and the rebuild steps are in
+`scripts/instruments/README.md`. The ice material adds what makes ice read as ice: fracture planes,
+a milky core and bubbles seen through the depth, and a glow that rises from the base. No CC0 flute,
+timpani or glockenspiel exists, so those stay code-built. On the model instruments the whole body
+answers the music (light veins, glow); the per-string and per-key motion of the code-built harp and
+piano is not carried over.

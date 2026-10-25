@@ -37,7 +37,7 @@ export function createIceMaterial(cheap: boolean) {
     ...(cheap
       ? { transparent: true, opacity: 0.72, transmission: 0, depthWrite: false }
       : {
-          transmission: 0.74, // not glass: part of the light scatters in the ice and lights it up
+          transmission: 0.84, // not glass: part of the light scatters in the ice and lights it up
           thickness: 0.55,
           dispersion: 0.4, // a thin rainbow where light bends at the edges
           attenuationColor: new THREE.Color("#b6ecff"),
@@ -47,13 +47,17 @@ export function createIceMaterial(cheap: boolean) {
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vLocalPos;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvLocalPos = position;");
+      .replace("#include <common>", "#include <common>\nvarying vec3 vLocalPos;\nvarying vec3 vLocalView;")
+      .replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\nvLocalPos = position;\nvLocalView = position - (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz;",
+      );
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
         `#include <common>
 varying vec3 vLocalPos;
+varying vec3 vLocalView;
 uniform float uCrack;
 uniform vec3 uOrigin;
 uniform float uLevel;
@@ -121,7 +125,46 @@ roughnessFactor = mix(roughnessFactor, 0.45, frost);`,
   float fr = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 3.0);
   totalEmissiveRadiance += vec3(0.62, 0.92, 1.0) * fr * (0.24 + uActive * 0.3 + uLevel * 0.4);
   // light scattered inside the body: carved ice is luminous, never dark glass
-  totalEmissiveRadiance += vec3(0.24, 0.52, 0.66) * (0.11 + 0.05 * vn3(vLocalPos * 3.0));
+  totalEmissiveRadiance += vec3(0.24, 0.52, 0.66) * (0.07 + 0.04 * vn3(vLocalPos * 3.0));
+
+  // what is inside the ice, seen through its depth (parallax: it shifts as the view moves):
+  // thin fracture sheets, a milky cloud that thickens with depth, and small air bubbles.
+  // March a few steps from the surface along the line of sight, in the instrument's own space.
+  {
+    vec3 rd = normalize(vLocalView);
+    float sheets = 0.0, cloud = 0.0, bubbles = 0.0;
+    // fracture planes: where the line of sight crosses one inside the ice, a crisp silvery sheet
+    // (brightest seen edge-on), cut off irregularly so each crack ends somewhere
+    for (int k = 0; k < 4; k++) {
+      float fk = float(k);
+      vec3 n = normalize(h33(vec3(fk * 7.13, 1.31, 2.77)) - 0.5);
+      float c = (h33(vec3(fk * 3.7, 5.1, 9.3)).x - 0.5) * 0.5;
+      float dn = dot(rd, n);
+      float t = (c - dot(vLocalPos, n)) / (abs(dn) < 1e-3 ? 1e-3 : dn);
+      if (t > 0.0 && t < 0.09) {
+        vec3 hit = vLocalPos + rd * t;
+        float extent = smoothstep(0.42, 0.5, vn3(hit * 3.2 + fk * 11.0));
+        float edgeOn = pow(1.0 - abs(dn), 2.0);
+        sheets += extent * exp(-t * 18.0) * (0.25 + edgeOn * 0.9) * (0.7 + 0.3 * vn3(hit * 40.0));
+      }
+    }
+    for (int i = 1; i <= 3; i++) {
+      float d = float(i) * 0.022;
+      vec3 q = vLocalPos + rd * d;
+      float w = exp(-d * 22.0);
+      cloud += smoothstep(0.52, 0.92, vn3(q * 6.5 + 5.0)) * (1.0 - w * 0.6);
+      vec3 cq = q * 85.0;
+      vec3 hb = h33(floor(cq) + 31.0);
+      bubbles += step(0.982, hb.x) * smoothstep(0.24, 0.06, length(fract(cq) - 0.5 - 0.3 * (hb.yzx - 0.5))) * w;
+    }
+    vec3 white = vec3(0.82, 0.95, 1.0);
+    totalEmissiveRadiance += white * (min(sheets, 1.5) * 0.5 + min(bubbles, 1.0) * 0.55);
+    // lit from its base like a festival ice sculpture: light enters at the bottom and fades upward,
+    // brightest where it meets cracks and edges
+    float base = exp(-max(vLocalPos.y, 0.0) * 1.8);
+    totalEmissiveRadiance += vec3(0.28, 0.72, 1.0) * base * (0.24 + min(sheets, 1.0) * 0.4 + fr * 0.4) * (0.8 + uActive * 0.6);
+    totalEmissiveRadiance += vec3(0.5, 0.78, 0.92) * (cloud / 3.0) * 0.14 * (1.0 - fr);
+  }
   // fine frost reads white and soft
   totalEmissiveRadiance += vec3(0.8, 0.93, 1.0) * frost * 0.07;
 }`,

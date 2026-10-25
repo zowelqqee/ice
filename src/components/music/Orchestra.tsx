@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Component, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Environment, Lightformer, MeshReflectorMaterial, PerformanceMonitor } from "@react-three/drei";
 import { Bloom, EffectComposer, SMAA, ToneMapping, Vignette } from "@react-three/postprocessing";
@@ -8,6 +8,7 @@ import { ToneMappingMode } from "postprocessing";
 import * as THREE from "three";
 import { BUILDERS, type InstrumentModel, type NotePart } from "./instruments";
 import { createIceMaterial } from "./iceMaterial";
+import { MODEL_SPECS, useModelInstrument } from "./models";
 import { INSTRUMENTS, orchestra, type Instrument } from "@/lib/audio/orchestra";
 import { detectQuality, type Quality } from "@/lib/quality";
 import { focus } from "./focus";
@@ -201,12 +202,42 @@ const poolMaterial = () =>
         float pool = exp(-d * d * 3.5);
         float ring = exp(-pow((d - 0.78) * 14.0, 2.0)) * (0.25 + uOn * 0.6);
         vec3 c = vec3(0.35, 0.75, 0.9) * pool * (0.12 + uOn * (0.35 + uLevel * 0.5)) + vec3(0.4, 1.1, 1.3) * ring * 0.35;
+        // the uplight in the floor under the ice (the ice shader adds its glow from the base)
+        c += vec3(0.45, 0.9, 1.2) * exp(-d * d * 60.0) * 0.9;
         gl_FragColor = vec4(c, 1.0);
       }`,
   });
 
-function IceInstrument({ name, place, cheap }: { name: Instrument; place: Place; cheap: boolean }) {
-  const model: InstrumentModel = useMemo(() => BUILDERS[name](), [name]);
+/** A detailed CC0 model where there is one (code-built while it loads, or if it fails). */
+function Instrument3D({ name, place, cheap }: { name: Instrument; place: Place; cheap: boolean }) {
+  const built = useMemo(() => BUILDERS[name](), [name]);
+  const fallback = <IceInstrument name={name} place={place} cheap={cheap} model={built} />;
+  if (!MODEL_SPECS[name]) return fallback;
+  return (
+    <ModelBoundary fallback={fallback}>
+      <Suspense fallback={fallback}>
+        <ModelInstrument name={name} place={place} cheap={cheap} />
+      </Suspense>
+    </ModelBoundary>
+  );
+}
+
+function ModelInstrument({ name, place, cheap }: { name: Instrument; place: Place; cheap: boolean }) {
+  const model = useModelInstrument(name)!;
+  return <IceInstrument name={name} place={place} cheap={cheap} model={model} />;
+}
+
+class ModelBoundary extends Component<{ fallback: React.ReactNode; children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+function IceInstrument({ name, place, cheap, model }: { name: Instrument; place: Place; cheap: boolean; model: InstrumentModel }) {
   const { mat, uniforms } = useMemo(() => createIceMaterial(cheap), [cheap]);
   const glowMat = useMemo(() => new THREE.MeshBasicMaterial({ color: new THREE.Color(0.4, 1.2, 1.5), toneMapped: false, transparent: true, opacity: 0.5 }), []);
   const strings = useMemo(
@@ -414,7 +445,7 @@ function Stage({ q }: { q: Quality }) {
       </group>
 
       {INSTRUMENTS.map((n) => (
-        <IceInstrument key={n} name={n} place={portrait ? row(n) : ARC[n]} cheap={cheap} />
+        <Instrument3D key={n} name={n} place={portrait ? row(n) : ARC[n]} cheap={cheap} />
       ))}
 
       <mesh rotation-x={-Math.PI / 2} position={[span / 2, 0, 0]}>
