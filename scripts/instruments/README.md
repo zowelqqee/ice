@@ -18,16 +18,20 @@ No CC0 model exists for the flute, timpani and glockenspiel; those stay code-bui
 ## Rebuilding
 
 1. Download the source files above (no account needed) into a folder outside the repo.
-2. For each, run headless Blender with scripts disabled (a .blend can carry code):
+2. For each, run headless Blender with scripts disabled (a .blend can carry code); the last numbers
+   are triangle budgets, small on purpose (the instruments are seen from across the stage):
 
    ```bash
    B=/Applications/Blender.app/Contents/MacOS/Blender
-   $B -b --factory-startup --disable-autoexec --python scripts/instruments/prepare.py -- piano_0.blend ~/ice/instruments-build/piano.glb 40000 "Text,Plane"
-   $B -b --factory-startup --disable-autoexec --python scripts/instruments/prepare.py -- celloOld.blend ~/ice/instruments-build/cello.glb 40000
-   $B -b --factory-startup --disable-autoexec --python scripts/instruments/prepare.py -- harp.stl ~/ice/instruments-build/harp.glb 60000
-   $B -b --factory-startup --disable-autoexec --python scripts/instruments/prepare.py -- violin-full.stl ~/ice/instruments-build/violin.glb 50000
-   $B -b --factory-startup --disable-autoexec --python scripts/instruments/prepare.py -- violin-bow.stl ~/ice/instruments-build/bow.glb 6000
-   $B -b --factory-startup --disable-autoexec --python scripts/instruments/prepare.py -- French_Horn_Blendswap.stl ~/ice/instruments-build/horn.glb 40000
+   P="$B -b --factory-startup --disable-autoexec --python scripts/instruments/prepare.py --"
+   $P piano_0.blend ~/ice/instruments-build/piano.glb 10000 "Text,Plane"
+   $P celloOld.blend ~/ice/instruments-build/cello.glb 6000
+   $P harp.stl ~/ice/instruments-build/harp.glb 12000
+   $P violin-full.stl ~/ice/instruments-build/violin.glb 7000
+   $P violin-bow.stl ~/ice/instruments-build/bow.glb 1200
+   $P French_Horn_Blendswap.stl ~/ice/instruments-build/horn.glb 9000
    ```
-3. `node scripts/media/instruments.mjs` → `public/models/instruments/*.glb` (meshopt, no metadata).
-4. Orientation, size and pedestals per instrument: `MODEL_SPECS` in `src/components/music/models.ts`.
+3. `node scripts/media/instruments.mjs` → `public/models/instruments/*.glb`: turned upright, scaled
+   to real size and set on the origin (`SPECS` there; the bow goes into the violin file), meshopt,
+   no metadata. About 330 KB for the five; the browser only unpacks them.
+4. Pedestals and floor pools per instrument: `MODEL_SPECS` in `src/components/music/models.ts`.

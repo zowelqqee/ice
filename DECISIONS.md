@@ -138,7 +138,7 @@ The client's jingle (17.6 s, a working version) is the sound of the brand, not b
 ## D15. Orchestra shapes from CC0 models
 The code-built instruments read as toys next to the skater. Piano, harp, violin with bow, cello
 and French horn now take their shapes from public-domain (CC0) models, prepared in Blender and
-compressed (1.3 MB for all, loaded only near the section); sources and the rebuild steps are in
+compressed to about 330 KB for all, ready to draw (orientation, size and normals baked in, so the browser does no geometry work), loaded only near the section; sources and the rebuild steps are in
 `scripts/instruments/README.md`. The ice material adds what makes ice read as ice: fracture planes,
 a milky core and bubbles seen through the depth, and a glow that rises from the base. No CC0 flute,
 timpani or glockenspiel exists, so those stay code-built. On the model instruments the whole body

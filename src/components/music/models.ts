@@ -1,79 +1,76 @@
+import { useMemo } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
-import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { merge, pedestal, type InstrumentModel } from "./instruments";
+import { pedestal, type InstrumentModel } from "./instruments";
 import type { Instrument } from "@/lib/audio/orchestra";
 
-// Detailed instrument shapes from CC0 models (sources and licences: scripts/instruments/README.md),
-// prepared by scripts/instruments/prepare.py + scripts/media/instruments.mjs. Each is turned upright,
-// scaled to its real size in metres and set on the floor (or on an ice pedestal). The flute, timpani
-// and glockenspiel (no CC0 model exists) and any model that fails to load stay code-built.
+// Detailed instrument shapes from CC0 models (sources and licences: scripts/instruments/README.md).
+// The files arrive ready to draw: upright, real size in metres, base on the origin, smooth normals
+// (all baked by scripts/media/instruments.mjs), so the browser only unpacks them; no geometry work
+// on the main thread. The flute, timpani and glockenspiel (no CC0 model exists), and any model that
+// fails to load, stay code-built.
 
 interface Spec {
-  files: string[]; // GLBs in /models/instruments, merged into one body
-  rot: [number, number, number]; // Euler XYZ (radians) that stands the model up, front toward +z
-  height?: number; // target height in metres (or…)
-  length?: number; // …target longest horizontal size
-  lift?: number; // raise it off the floor (and add an ice pedestal under it)
+  lift?: number; // raised off the floor on an ice pedestal
   radius: number; // footprint, for the light pool on the floor
 }
 
-const D = Math.PI / 180;
 export const MODEL_SPECS: Partial<Record<Instrument, Spec>> = {
-  piano: { files: ["piano"], rot: [0, 0, 0], length: 1.95, radius: 1.2 },
-  harp: { files: ["harp"], rot: [90 * D, 0, 0], height: 1.75, radius: 0.6 },
-  cello: { files: ["cello"], rot: [0, 0, 90 * D], height: 1.25, radius: 0.5 },
-  violin: { files: ["violin", "bow"], rot: [-90 * D, 0, 0], height: 0.75, lift: 0.85, radius: 0.45 },
-  horn: { files: ["horn"], rot: [0, 0, 0], length: 0.62, lift: 0.85, radius: 0.5 },
+  piano: { radius: 1.2 },
+  harp: { radius: 0.6 },
+  cello: { radius: 0.5 },
+  violin: { lift: 0.85, radius: 0.45 },
+  horn: { lift: 0.85, radius: 0.5 },
 };
 
-export const modelUrl = (f: string) => `/models/instruments/${f}.glb`;
+export const modelUrl = (name: string) => `/models/instruments/${name}.glb`;
 
-function geometryOf(scene: THREE.Object3D) {
-  const parts: THREE.BufferGeometry[] = [];
+/** Plain float copies of the file's meshes, in metres (the file stores quantized attributes and
+ *  the scale to undo them on the node). */
+function meshesOf(scene: THREE.Object3D, lift: number) {
+  const out: THREE.BufferGeometry[] = [];
   scene.updateMatrixWorld(true);
+  const m4 = new THREE.Matrix4().makeTranslation(0, lift, 0);
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
-    // the files store quantized (integer) attributes; work in plain floats
     const g = new THREE.BufferGeometry();
+    const world = new THREE.Matrix4().multiplyMatrices(m4, m.matrixWorld);
+    const normalMatrix = new THREE.Matrix3().getNormalMatrix(world);
+    const v = new THREE.Vector3();
     for (const k of ["position", "normal"]) {
       const a = m.geometry.getAttribute(k);
       if (!a) continue;
       const arr = new Float32Array(a.count * 3);
       for (let i = 0; i < a.count; i++) {
-        arr[i * 3] = a.getX(i);
-        arr[i * 3 + 1] = a.getY(i);
-        arr[i * 3 + 2] = a.getZ(i);
+        v.set(a.getX(i), a.getY(i), a.getZ(i));
+        if (k === "position") v.applyMatrix4(world);
+        else v.applyMatrix3(normalMatrix).normalize();
+        arr[i * 3] = v.x;
+        arr[i * 3 + 1] = v.y;
+        arr[i * 3 + 2] = v.z;
       }
       g.setAttribute(k, new THREE.BufferAttribute(arr, 3));
     }
-    if (m.geometry.index) g.setIndex(Array.from(m.geometry.index.array));
-    g.applyMatrix4(m.matrixWorld);
-    parts.push(g);
+    if (m.geometry.index) g.setIndex(m.geometry.index);
+    out.push(g);
   });
-  return parts;
+  return out;
 }
 
-/** The instrument body from its models (suspends while they load). */
+/** The instrument body from its model (suspends while it loads). */
 export function useModelInstrument(name: Instrument): InstrumentModel | null {
   const spec = MODEL_SPECS[name];
-  const gltfs = useGLTF(spec ? spec.files.map(modelUrl) : [], false, true) as unknown as { scene: THREE.Object3D }[];
-  if (!spec) return null;
-  let geo = merge(gltfs.flatMap((g) => geometryOf(g.scene)));
-  geo.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(...spec.rot)));
-  geo.computeBoundingBox();
-  let b = geo.boundingBox!;
-  const size = b.getSize(new THREE.Vector3());
-  const s = spec.height ? spec.height / size.y : spec.length! / Math.max(size.x, size.z);
-  const c = b.getCenter(new THREE.Vector3());
-  geo.translate(-c.x, -b.min.y, -c.z);
-  geo.scale(s, s, s);
-  if (spec.lift) geo.translate(0, spec.lift, 0);
-  geo = mergeVertices(geo, 1e-5);
-  geo.computeVertexNormals();
-  const ice = spec.lift ? merge([geo, pedestal(geo)]) : geo;
-  ice.computeBoundingBox();
-  b = ice.boundingBox!;
-  return { ice, glow: null, strings: [], parts: [], height: b.max.y, radius: spec.radius };
+  const gltf = useGLTF(modelUrl(spec ? name : "piano"), false, true) as unknown as { scene: THREE.Object3D };
+  return useMemo(() => {
+    if (!spec) return null;
+    const [ice, ...extra] = meshesOf(gltf.scene, spec.lift ?? 0);
+    if (spec.lift) extra.push(pedestal(ice));
+    const box = new THREE.Box3();
+    for (const g of [ice, ...extra]) {
+      g.computeBoundingBox();
+      box.union(g.boundingBox!);
+    }
+    return { ice, extra, glow: null, strings: [], parts: [], height: box.max.y, radius: spec.radius };
+  }, [gltf.scene, spec]);
 }

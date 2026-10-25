@@ -18,6 +18,7 @@ export interface NotePart {
 }
 export interface InstrumentModel {
   ice: THREE.BufferGeometry;
+  extra?: THREE.BufferGeometry[]; // more ice drawn with the same material (a bow, a pedestal)
   glow: THREE.BufferGeometry | null;
   strings: Seg[];
   parts: NotePart[];

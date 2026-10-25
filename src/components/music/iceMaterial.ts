@@ -39,7 +39,6 @@ export function createIceMaterial(cheap: boolean) {
       : {
           transmission: 0.84, // not glass: part of the light scatters in the ice and lights it up
           thickness: 0.55,
-          dispersion: 0.4, // a thin rainbow where light bends at the edges
           attenuationColor: new THREE.Color("#b6ecff"),
           attenuationDistance: 1.4,
         }),
@@ -135,7 +134,7 @@ roughnessFactor = mix(roughnessFactor, 0.45, frost);`,
     float sheets = 0.0, cloud = 0.0, bubbles = 0.0;
     // fracture planes: where the line of sight crosses one inside the ice, a crisp silvery sheet
     // (brightest seen edge-on), cut off irregularly so each crack ends somewhere
-    for (int k = 0; k < 4; k++) {
+    for (int k = 0; k < 3; k++) {
       float fk = float(k);
       vec3 n = normalize(h33(vec3(fk * 7.13, 1.31, 2.77)) - 0.5);
       float c = (h33(vec3(fk * 3.7, 5.1, 9.3)).x - 0.5) * 0.5;

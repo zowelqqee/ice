@@ -210,16 +210,22 @@ const poolMaterial = () =>
 
 /** A detailed CC0 model where there is one (code-built while it loads, or if it fails). */
 function Instrument3D({ name, place, cheap }: { name: Instrument; place: Place; cheap: boolean }) {
-  const built = useMemo(() => BUILDERS[name](), [name]);
-  const fallback = <IceInstrument name={name} place={place} cheap={cheap} model={built} />;
-  if (!MODEL_SPECS[name]) return fallback;
+  const built = <BuiltInstrument name={name} place={place} cheap={cheap} />;
+  if (!MODEL_SPECS[name]) return built;
+  // nothing while the model loads (building the code version meanwhile would cost more than it
+  // shows); the code version only if the model fails
   return (
-    <ModelBoundary fallback={fallback}>
-      <Suspense fallback={fallback}>
+    <ModelBoundary fallback={built}>
+      <Suspense fallback={null}>
         <ModelInstrument name={name} place={place} cheap={cheap} />
       </Suspense>
     </ModelBoundary>
   );
+}
+
+function BuiltInstrument({ name, place, cheap }: { name: Instrument; place: Place; cheap: boolean }) {
+  const model = useMemo(() => BUILDERS[name](), [name]);
+  return <IceInstrument name={name} place={place} cheap={cheap} model={model} />;
 }
 
 function ModelInstrument({ name, place, cheap }: { name: Instrument; place: Place; cheap: boolean }) {
@@ -336,6 +342,9 @@ function IceInstrument({ name, place, cheap, model }: { name: Instrument; place:
             document.body.style.cursor = "";
           }}
         />
+        {model.extra?.map((g, i) => (
+          <mesh key={`x${i}`} geometry={g} material={mat} onClick={onClick} />
+        ))}
         {model.glow && <mesh geometry={model.glow} material={glowMat} />}
         {strings.map((s, i) => (
           <mesh key={i} geometry={s.g} material={s.m} />
@@ -469,10 +478,10 @@ function Stage({ q }: { q: Quality }) {
         )}
       </mesh>
 
-      <EffectComposer multisampling={q.tier === "high" ? 2 : 0}>
+      <EffectComposer multisampling={0}>
         <Bloom mipmapBlur intensity={0.85} luminanceThreshold={0.76} radius={0.5} />
         <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-        {q.tier === "high" ? <></> : <SMAA />}
+        <SMAA />
         <Vignette offset={0.3} darkness={0.45} />
       </EffectComposer>
     </>
@@ -513,8 +522,8 @@ export default function Orchestra({ active = true }: { active?: boolean }) {
   useEffect(() => {
     const d = detectQuality();
     setQ(d);
-    // capable machines render the ice at up to 1.75x pixels; others keep the tier's cap
-    setDpr(Math.min(window.devicePixelRatio || 1, d.tier === "high" ? 1.75 : Math.min(d.dpr[1], 1.5)));
+    // capable machines render the ice at up to 1.5x pixels; others a little less
+    setDpr(Math.min(window.devicePixelRatio || 1, d.tier === "high" ? 1.5 : Math.min(d.dpr[1], 1.35)));
   }, []);
   return (
     <div ref={wrap} className="relative h-full w-full touch-pan-y">
