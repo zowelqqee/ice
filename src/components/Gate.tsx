@@ -13,12 +13,13 @@ import type { Dictionary } from "@/i18n";
 const SEEN_KEY = "moi.entered";
 
 /**
- * Enter screen. Doubles as the preloader: the blade line carves across while the hero loads,
- * then the visitor chooses sound or silence (the logo's treble clef also enters with sound).
- * With sound, leaving is the brand intro, timed to the jingle: a line of light cuts the screen,
- * on the opening sweep the two halves part like a door into the rink, light and frost burst out,
- * the stage curtains behind it part, and the treble clef flies down onto the ice, where the glass
- * clef takes over (and later turns into the skater). In silence the same, quicker.
+ * Enter screen. Doubles as the preloader: the blade line carves across while the hero loads.
+ * Nobody is asked about sound: one Enter (the button, or a click or tap anywhere) and it plays;
+ * where the browser lets sound start without a gesture, it starts by itself once loaded. Leaving is
+ * the brand intro, timed to the jingle: a line of light cuts the screen, on the opening sweep the
+ * two halves part like a door into the rink, light and frost burst out, the stage curtains behind
+ * it part, and the treble clef flies down onto the ice, where the glass clef takes over (and later
+ * turns into the skater). If the jingle cannot play, the same, quicker.
  */
 
 /** Frost crystals bursting out of a line or a point (one canvas, drawn only during the intro). */
@@ -139,24 +140,33 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
     return () => cancelAnimationFrame(raf);
   }, [open, ready]);
 
-  const loaded = progress > 0.995;
+  // does the browser let sound start without a gesture? then there is nothing to press
+  const [auto, setAuto] = useState<boolean | null>(null);
   useEffect(() => {
-    if (loaded) firstBtn.current?.focus({ preventScroll: true });
-  }, [loaded]);
+    if (!open || !ready) return;
+    let alive = true;
+    audio.unlock().then((ok) => alive && setAuto(ok));
+    return () => {
+      alive = false;
+    };
+  }, [open, ready]);
+
+  const loaded = progress > 0.995;
+  const askEnter = loaded && auto === false;
+  useEffect(() => {
+    if (askEnter) firstBtn.current?.focus({ preventScroll: true });
+  }, [askEnter]);
 
   const leaving = useRef(false);
-  const enter = async (withSound: boolean) => {
+  const enter = async () => {
     if (leaving.current) return;
     leaving.current = true;
-    let music = false;
-    rememberSound(withSound);
-    if (withSound) {
-      await audio.enable();
-      music = await jingle.play();
-      if (!music) {
-        audio.bell(76, 0.07);
-        audio.bell(83, 0.05, 0.12);
-      }
+    rememberSound(true);
+    await audio.enable();
+    const music = await jingle.play();
+    if (!music) {
+      audio.bell(76, 0.07);
+      audio.bell(83, 0.05, 0.12);
     }
     try {
       sessionStorage.setItem(SEEN_KEY, "1");
@@ -167,7 +177,7 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
       return setOpen(false);
     }
 
-    // timed to the jingle with music; the same shape, quicker, in silence
+    // timed to the jingle; the same shape, quicker, if it could not play
     const k = music ? 1 : 0.5;
     const sweep = music ? JINGLE_SWEEP : 0.6;
     const W = innerWidth, H = innerHeight;
@@ -219,6 +229,19 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
       .to({}, { duration: 0.5 * k });
   };
 
+  // a click or tap anywhere enters (the focused button takes the keyboard); one that comes before
+  // the scene is ready unlocks sound and enters as soon as it is
+  const early = useRef(false);
+  const go = () => {
+    if (leaving.current) return;
+    if (loaded) return void enter();
+    early.current = true;
+    void audio.unlock();
+  };
+  useEffect(() => {
+    if (loaded && (auto || early.current)) void enter();
+  }, [loaded, auto]);
+
   if (!open) return null;
 
   return (
@@ -228,6 +251,8 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
       aria-modal="true"
       aria-labelledby="gate-title"
       className="fixed inset-0 z-[100] text-ice"
+      onClick={go}
+      style={{ cursor: loaded ? "pointer" : "default" }}
     >
       {/* two halves of the "ice sheet", split along the blade line on exit */}
       {/* the veil is thin in the middle: the skater is visible behind the Enter screen from the first frame */}
@@ -271,16 +296,9 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
         <h1 id="gate-title" className="sr-only">
           Musical on Ice
         </h1>
-        <button
-          type="button"
-          onClick={() => loaded && enter(true)}
-          tabIndex={-1}
-          aria-hidden
-          className="group block w-[min(44vw,220px)] select-none text-ice"
-          style={{ cursor: loaded ? "pointer" : "default" }}
-        >
+        <div aria-hidden className="group block w-[min(44vw,220px)] select-none text-ice">
           <BrandLogo className="block h-auto w-full" clefClassName="transition-[filter] duration-500 group-hover:[filter:drop-shadow(0_0_14px_rgba(92,242,255,0.9))]" />
-        </button>
+        </div>
         <p data-ui className="eyebrow">{t.kicker}</p>
         </div>
 
@@ -302,27 +320,21 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
 
         <div
           data-ui
-          className="flex flex-col items-center gap-4 transition-opacity duration-700 sm:flex-row sm:gap-8"
-          style={{ opacity: loaded ? 1 : 0, pointerEvents: loaded ? "auto" : "none" }}
+          className="flex flex-col items-center transition-opacity duration-700"
+          style={{ opacity: askEnter ? 1 : 0, pointerEvents: askEnter ? "auto" : "none" }}
         >
+          {/* the screen's own click enters; the button is there to be seen and focused */}
           <button
             ref={firstBtn}
             type="button"
-            onClick={() => enter(true)}
-            className="group relative overflow-hidden border border-ice/70 px-8 py-4 font-mono text-[12px] uppercase tracking-[0.24em] transition-colors duration-500 hover:border-accent hover:text-ink"
+            tabIndex={askEnter ? 0 : -1}
+            className="group relative overflow-hidden border border-ice/70 px-10 py-4 font-mono text-[12px] uppercase tracking-[0.24em] transition-colors duration-500 hover:border-accent hover:text-ink"
           >
             <span className="absolute inset-0 -translate-x-[101%] bg-accent transition-transform duration-500 ease-[var(--ease-blade)] group-hover:translate-x-0" />
-            <span className="relative">{t.withSound}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => enter(false)}
-            className="px-4 py-4 font-mono text-[12px] uppercase tracking-[0.24em] text-frost underline-offset-8 hover:text-ice hover:underline"
-          >
-            {t.silent}
+            <span className="relative">{t.enter}</span>
           </button>
         </div>
-        <p data-ui className="eyebrow text-mist" style={{ opacity: loaded ? 1 : 0 }}>
+        <p data-ui className="eyebrow text-mist transition-opacity duration-700" style={{ opacity: askEnter ? 1 : 0 }}>
           {t.soundHint}
         </p>
         </div>

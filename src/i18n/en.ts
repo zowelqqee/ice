@@ -9,9 +9,8 @@ const en = {
   gate: {
     kicker: "A musical told on skates",
     loading: "Freezing the rink",
-    withSound: "Enter with sound",
-    silent: "Enter in silence",
-    soundHint: "Best with headphones",
+    enter: "Enter",
+    soundHint: "With sound. Best with headphones",
   },
   sound: { mute: "Mute sound", unmute: "Turn sound on" },
   hero: {

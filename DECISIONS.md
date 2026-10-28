@@ -69,11 +69,15 @@ font service.
 Dictionaries live in `src/i18n/` (en complete; de, fr, es, it are stubs that fall back to en).
 There are no locale routes yet. Adding `/[locale]` is a mechanical step once translations exist.
 
-## D7. Sound on by default (updated after the October 2026 review)
-The Enter screen offers "with sound" first and "in silence" second. Browsers only let sound start
-from a gesture, so on a revisit (no Enter screen) it starts with the visitor's first click, tap or
-key. A visitor who chooses silence or turns sound off with the header button is remembered across
-visits; then nothing plays until they turn it back on. (First version: off until the visitor chose.) Until licensed stems exist, the hero runs a small Web Audio ambient: an ice pad,
+## D7. Sound on by default, nobody asked (updated after the October 2026 reviews)
+The Enter screen has no sound question: one "Enter" (the button, or a click or tap anywhere) and the
+intro plays with the jingle. Most browsers only let sound start from a gesture, so that one press
+stays; where the browser allows sound without one, the intro starts by itself once the scene is
+ready. On a revisit (no Enter screen) sound starts with the visitor's first click, tap or key. The
+header button turns it off, and it stays off on that visit's pages; the next visit's Enter screen
+starts with sound again. (First
+version: off until the visitor chose; then a "with sound / in silence" choice, removed at the client's
+request.) Until licensed stems exist, the hero runs a small Web Audio ambient: an ice pad,
 blade hiss that follows spin speed, and glass bells on fast spins. Show music is extracted from the
 supplied videos' soundtracks (rights: open question).
 
@@ -143,7 +147,7 @@ Each ice instrument plays its own part of an original 16-bar theme in D minor, s
 
 ## D14. The jingle: the brand theme for logo moments
 The client's jingle (17.6 s, a working version) is the sound of the brand, not background music:
-- **Enter screen = the brand intro.** "Enter with sound" (or the logo's treble clef) plays it, and
+- **Enter screen = the brand intro.** Entering plays it (always with sound, see D7), and
   the screen is timed to it: a line of light cuts across, on the opening sweep (1.75 s) the halves
   part like a door into the rink with a burst of light and frost, and the treble clef flies down
   into the skater and dissolves into her; the hero is open by the musical peak (5–6 s).

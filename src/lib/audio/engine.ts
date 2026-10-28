@@ -1,7 +1,8 @@
-// Single Web Audio graph for the whole site. Sound is on by default (client, October 2026), but
-// browsers only let it start from a gesture: the Enter screen's buttons, or, without it, the
-// visitor's first click, tap or key anywhere. A visitor who turns it off (the Enter screen's
-// "in silence" or the sound button) is remembered, and then it waits for the button.
+// Single Web Audio graph for the whole site. Sound is on by default and nobody is asked (client,
+// October 2026). Most browsers only let it start from a gesture: entering on the Enter screen, or,
+// without it, the visitor's first click, tap or key anywhere; where the browser allows it without
+// one, the Enter screen starts by itself. A visitor who turns it off with the sound button keeps it
+// off on that visit's pages (the next visit's Enter screen starts with sound again).
 //
 //   sources ─► bus ─► master (mute) ─► analyser ─► destination
 //                └──► reverb send
@@ -62,13 +63,21 @@ class AudioEngine {
 
   /** Call from a user gesture. */
   async enable() {
-    // iPhone: without this, Web Audio is muted by the ringer switch (Safari 17+)
-    const nav = navigator as Navigator & { audioSession?: { type: string } };
-    if (nav.audioSession) nav.audioSession.type = "playback";
     if (!this.ctx) this.build();
     await this.ctx!.resume();
     this._enabled = true;
     this.setMuted(false);
+  }
+
+  /** Build the graph and wake it without a sound (the master stays at zero). From a gesture this
+   *  unlocks sound for later; without one, it tells whether the browser lets sound play at all. */
+  async unlock(wait = 400): Promise<boolean> {
+    if (!this.ctx) this.build();
+    const ctx = this.ctx!;
+    if (ctx.state === "running") return true;
+    // where sound needs a gesture, resume() stays pending (or fails) until there is one
+    const timeout = new Promise<boolean>((r) => setTimeout(() => r(false), wait));
+    return Promise.race([ctx.resume().then(() => ctx.state === "running", () => false), timeout]);
   }
 
   setMuted(m: boolean) {
@@ -89,6 +98,9 @@ class AudioEngine {
   }
 
   private build() {
+    // iPhone: without this, Web Audio is muted by the ringer switch (Safari 17+)
+    const nav = navigator as Navigator & { audioSession?: { type: string } };
+    if (nav.audioSession) nav.audioSession.type = "playback";
     const ctx = new AudioContext({ latencyHint: "interactive" });
     this.ctx = ctx;
     this.master = ctx.createGain();
@@ -282,7 +294,7 @@ function soundRefused() {
 export const audio = new AudioEngine();
 
 // sound on by default: start on the first gesture the browser accepts for it (not while the Enter
-// screen is up: its buttons choose; not from the sound button itself: it toggles on its own)
+// screen is up: entering starts it; not from the sound button itself: it toggles on its own)
 if (typeof window !== "undefined") {
   const events = ["pointerdown", "keydown", "touchend", "click"] as const;
   const stop = () => events.forEach((e) => window.removeEventListener(e, start, true));
