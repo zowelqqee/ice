@@ -27,7 +27,9 @@ const CHORDS = [
 const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
 class AudioEngine {
+  /** Set once the whole graph is wired. */
   ctx: AudioContext | null = null;
+  private early: AudioContext | null = null; // made ahead of time, not wired yet
   private master!: GainNode;
   bus!: GainNode;
   reverbSend!: GainNode;
@@ -64,6 +66,14 @@ class AudioEngine {
   async enable() {
     if (!this.ctx) this.build();
     await this.ctx!.resume();
+    if (!this._enabled && this.pad) {
+      // the pad rises from silence when sound first comes on (the graph may have been made earlier)
+      const g = this.pad.gain.gain;
+      const now = this.ctx!.currentTime;
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(0, now);
+      g.setTargetAtTime(0.11 * this.ambientLevel, now, 2.5);
+    }
     this._enabled = true;
     this.setMuted(false);
   }
@@ -96,11 +106,23 @@ class AudioEngine {
     this.setMuted(!on);
   }
 
+  /** Make the graph ahead of time, in two quiet moments: opening an AudioContext alone is a long
+   *  task on a phone, and the reverb another, so neither lands on the click or on the intro. It
+   *  stays silent and suspended until the first gesture, as before. */
+  prepare() {
+    if (this.ctx || this.early) return;
+    idle(() => {
+      if (this.ctx || this.early) return;
+      this.early = newContext();
+      idle(() => {
+        if (!this.ctx) this.build();
+      });
+    });
+  }
+
   private build() {
-    // iPhone: without this, Web Audio is muted by the ringer switch (Safari 17+)
-    const nav = navigator as Navigator & { audioSession?: { type: string } };
-    if (nav.audioSession) nav.audioSession.type = "playback";
-    const ctx = new AudioContext({ latencyHint: "interactive" });
+    const ctx = this.early ?? newContext();
+    this.early = null;
     this.ctx = ctx;
     this.master = ctx.createGain();
     this.master.gain.value = 0;
@@ -257,6 +279,18 @@ class AudioEngine {
   }
 }
 
+function newContext() {
+  // iPhone: without this, Web Audio is muted by the ringer switch (Safari 17+)
+  const nav = navigator as Navigator & { audioSession?: { type: string } };
+  if (nav.audioSession) nav.audioSession.type = "playback";
+  return new AudioContext({ latencyHint: "interactive" });
+}
+
+function idle(fn: () => void) {
+  if ("requestIdleCallback" in window) requestIdleCallback(fn, { timeout: 2500 });
+  else setTimeout(fn, 300);
+}
+
 function noiseBuffer(ctx: AudioContext, seconds: number) {
   const len = Math.floor(ctx.sampleRate * seconds);
   const buf = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -268,9 +302,15 @@ function noiseBuffer(ctx: AudioContext, seconds: number) {
 function impulse(ctx: AudioContext, seconds: number, decay: number) {
   const len = Math.floor(ctx.sampleRate * seconds);
   const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  // the decay is smooth: worked out once per 64 samples (a Math.pow per sample made this the
+  // longest task on a phone, right as the intro starts)
   for (let c = 0; c < 2; c++) {
     const d = buf.getChannelData(c);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    for (let i = 0; i < len; i += 64) {
+      const env = Math.pow(1 - i / len, decay);
+      const end = Math.min(len, i + 64);
+      for (let j = i; j < end; j++) d[j] = (Math.random() * 2 - 1) * env;
+    }
   }
   return buf;
 }
@@ -304,4 +344,8 @@ if (typeof window !== "undefined") {
     void audio.enable();
   };
   events.forEach((e) => window.addEventListener(e, start, { capture: true, passive: true }));
+  // and the graph is made once the page has loaded, unless the visitor turned sound off
+  const ready = () => soundRefused() || audio.prepare();
+  if (document.readyState === "complete") ready();
+  else window.addEventListener("load", ready, { once: true });
 }

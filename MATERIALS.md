@@ -76,5 +76,5 @@ the Dracula folder). The pipeline references one canonical source per asset.
 
 | Asset | Source | License | Use |
 |---|---|---|---|
-| Hero skater | Built by script (`scripts/skater/`): body, eyes and skin from MakeHuman assets via MPFB 2.0.18; costume, skates, hair, crystals our own | CC0 (MakeHuman assets); ours | Posed, trimmed, meshopt and WebP: `public/models/skater.glb` (1.9 MB). Shown as a glass figure. No credit needed |
+| Hero skater | Built by script (`scripts/skater/`): body, eyes and skin from MakeHuman assets via MPFB 2.0.18; costume, skates, hair, crystals our own | CC0 (MakeHuman assets); ours | Posed, trimmed, meshopt, no textures (every part is redrawn in glass): `public/models/skater.glb` (1.35 MB, 0.83 MB over the wire). Shown as a glass figure. No credit needed |
 | Orchestra samples | VS Chamber Orchestra 2 CE (Versilian Studios), github.com/sgossner/VSCO-2-CE | CC0 | 90 notes across 8 instruments, pitch-verified, trimmed, normalised: `public/media/orchestra/` |

@@ -16,14 +16,12 @@ import { skaterPoints } from "./Skater";
 import { clipPlanes, formVisible } from "./morph";
 import { LOGO_CLEF } from "@/components/brand/logo";
 import type { StageUniforms } from "./uniforms";
+import type { Tier } from "@/lib/quality";
 
 export const SKATER_MODEL = "/models/skater.glb";
 const MODEL_YAW = 0; // the model faces +Z (the camera) at angle 0
 const FILL_POS = new THREE.Vector3(2.6, 2.4, 6.0);
 const TINT = new THREE.Color("#cdeffd");
-
-// parts (glTF node names) that would only double up behind the glass
-const HIDDEN = new Set(["sheer", "brows", "lashes"]);
 
 type Shared = {
   uL1: { value: THREE.Vector3 }; // view-space directions to the back light, kicker and fill
@@ -60,7 +58,7 @@ interface GlassLook {
 /** Glass on top of three's physical material: the material supplies reflections and specular
  *  highlights (diffuse is black), the shader adds the edge glow, rim and glints, and writes
  *  premultiplied colour so the glass both lets the stage through and adds light to it. */
-function glass(stage: StageUniforms, shared: Shared, env: THREE.Texture, look: GlassLook, head: THREE.Vector3, clip: THREE.Plane) {
+function glass(stage: StageUniforms, shared: Shared, env: THREE.Texture, look: GlassLook, head: THREE.Vector3, clip: THREE.Plane, lite: boolean) {
   const m = new THREE.MeshPhysicalMaterial({
     color: "#000000",
     roughness: look.sparkle ? 0.02 : 0.07,
@@ -69,7 +67,7 @@ function glass(stage: StageUniforms, shared: Shared, env: THREE.Texture, look: G
     specularIntensity: 1,
     clearcoat: look.sparkle ? 1 : 0.5,
     clearcoatRoughness: 0.04,
-    iridescence: look.sparkle ? 0 : 0.15,
+    iridescence: look.sparkle || lite ? 0 : 0.15, // a faint film; the costliest part of the glass
     iridescenceIOR: 1.35,
     iridescenceThicknessRange: [180, 520],
     envMap: env,
@@ -80,7 +78,9 @@ function glass(stage: StageUniforms, shared: Shared, env: THREE.Texture, look: G
     premultipliedAlpha: true,
     clippingPlanes: [clip],
   });
-  const extra = { uTint: { value: TINT }, uHead: { value: head } };
+  // the look goes in as a uniform, not into the source: every part then shares the same few
+  // programs (front, back, with or without the film) instead of compiling one per look
+  const extra = { uTint: { value: TINT }, uHead: { value: head }, uLook: { value: new THREE.Vector4(look.body, look.edge, look.glitter, look.sparkle ? 1.8 : 1) } };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, shared, extra, { uRimColor: stage.uRimColor, uRim: stage.uRim, uGlitter: stage.uGlitter });
     sh.vertexShader = sh.vertexShader
@@ -93,6 +93,7 @@ function glass(stage: StageUniforms, shared: Shared, env: THREE.Texture, look: G
 varying vec3 vLocalP;
 uniform vec3 uL1; uniform vec3 uL2; uniform vec3 uL3;
 uniform vec3 uRimColor; uniform float uRim; uniform float uGlitter; uniform vec3 uTint; uniform vec3 uHead;
+uniform vec4 uLook; // body, edge, glitter, brightness
 ${GLITTER}`,
       )
       .replace(
@@ -108,13 +109,13 @@ ${GLITTER}`,
   float r2 = pow(1.0 - ndv, 4.0) * clamp(dot(Nr, uL2) * 1.3 + 0.2, 0.0, 1.0);
   vec3 refl = outgoingLight * mix(0.45, 1.0, calm);  // reflections and highlights (no diffuse)
   vec3 col = refl
-           + uTint * fres * ${look.edge.toFixed(2)} * 0.55
+           + uTint * fres * uLook.y * 0.55
            + uTint * pow(1.0 - ndv, 1.2) * calm * 0.12  // light gathered inside the glass
            + uRimColor * r1 * uRim * 0.42
            + vec3(0.8, 0.9, 1.0) * r2 * 0.6
-           + vec3(1.0, 1.04, 1.1) * glints(vLocalP, Nr, Vr, 420.0, ${look.glitter.toFixed(3)}) * uGlitter * 1.4;
-  ${look.sparkle ? "col *= 1.8;" : ""}
-  float a = clamp(${look.body.toFixed(2)} + ${look.edge.toFixed(2)} * fres + dot(refl, vec3(0.3, 0.5, 0.2)) * 0.5, 0.0, 1.0);
+           + vec3(1.0, 1.04, 1.1) * glints(vLocalP, Nr, Vr, 420.0, uLook.z) * uGlitter * 1.4;
+  col *= uLook.w;
+  float a = clamp(uLook.x + uLook.y * fres + dot(refl, vec3(0.3, 0.5, 0.2)) * 0.5, 0.0, 1.0);
   gl_FragColor = vec4(col, a);
 }`,
       )
@@ -122,27 +123,28 @@ ${GLITTER}`,
       .replace("#include <colorspace_fragment>", "gl_FragColor.rgb = sRGBTransferOETF( vec4(gl_FragColor.rgb, 1.0) ).rgb;")
       .replace("#include <premultiplied_alpha_fragment>", "");
   };
-  m.customProgramCacheKey = () => "glass" + JSON.stringify(look);
+  m.customProgramCacheKey = () => "glass";
   return m;
 }
 
 /** Spun-glass hair (glTF LINES): anisotropic highlights from the stage lights, fading tips. */
 function glassStrands(geom: THREE.BufferGeometry, shared: Shared, stage: StageUniforms, clip: THREE.Plane) {
-  const pos = geom.getAttribute("position") as THREE.BufferAttribute;
+  const pos = geom.getAttribute("position") as THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
   const idx = geom.getIndex();
   const tan = new Float32Array(pos.count * 3);
-  const a = new THREE.Vector3();
-  const b = new THREE.Vector3();
+  // straight from the (quantised, maybe interleaved) array: ~100k segments, and only the
+  // direction matters (the shader normalises it), so the integer steps do as they are
+  const [src, stride, at] = "isInterleavedBufferAttribute" in pos ? [pos.data.array, pos.data.stride, pos.offset] : [pos.array, pos.itemSize, 0];
   const n = idx ? idx.count : pos.count;
   for (let i = 0; i < n; i += 2) {
     const i0 = idx ? idx.getX(i) : i;
     const i1 = idx ? idx.getX(i + 1) : i + 1;
-    a.fromBufferAttribute(pos, i0);
-    b.fromBufferAttribute(pos, i1).sub(a);
-    for (const k of [i0, i1]) {
-      tan[k * 3] += b.x;
-      tan[k * 3 + 1] += b.y;
-      tan[k * 3 + 2] += b.z;
+    const p0 = i0 * stride + at;
+    const p1 = i1 * stride + at;
+    for (let c = 0; c < 3; c++) {
+      const d = src[p1 + c] - src[p0 + c];
+      tan[i0 * 3 + c] += d;
+      tan[i1 * 3 + c] += d;
     }
   }
   geom.setAttribute("aTangent", new THREE.BufferAttribute(tan, 3));
@@ -264,7 +266,10 @@ function clefGeometry() {
   return g;
 }
 
-export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; mirror?: boolean }) {
+/** `detail`: the device tier the scene started at. Below "high" the glass has no iridescent film;
+ *  at "low" it also has no inner surfaces. */
+export function SkaterModel({ stage, mirror = false, detail = "high" }: { stage: StageUniforms; mirror?: boolean; detail?: Tier }) {
+  const lite = detail !== "high";
   const gltf = useGLTF(SKATER_MODEL, false, true);
   const env = useEnvMap();
   const shared = useMemo<Shared>(
@@ -299,12 +304,12 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
       head.y -= 0.03;
     }
     const cut = clipPlanes.girl;
-    const solid = glass(stage, shared, env, { body: 0.06, edge: 0.75, glitter: 0.004, solid: true }, head, cut);
-    const velvet = glass(stage, shared, env, { body: 0.05, edge: 0.7, glitter: 0.02, solid: true }, head, cut);
-    const inside = glass(stage, shared, env, { body: 0.03, edge: 0.55, glitter: 0, solid: true, inside: true }, head, cut);
-    const frosted = glass(stage, shared, env, { body: 0.42, edge: 0.6, glitter: 0.01 }, head, cut); // hair mass: denser, so the head holds its shape against the lamp
-    const chiffon = glass(stage, shared, env, { body: 0.03, edge: 0.6, glitter: 0.02 }, head, cut);
-    const sparkle = glass(stage, shared, env, { body: 0.1, edge: 0.9, glitter: 0, sparkle: true }, head, cut);
+    const solid = glass(stage, shared, env, { body: 0.06, edge: 0.75, glitter: 0.004, solid: true }, head, cut, lite);
+    const velvet = glass(stage, shared, env, { body: 0.05, edge: 0.7, glitter: 0.02, solid: true }, head, cut, lite);
+    const inside = glass(stage, shared, env, { body: 0.03, edge: 0.55, glitter: 0, solid: true, inside: true }, head, cut, lite);
+    const frosted = glass(stage, shared, env, { body: 0.42, edge: 0.6, glitter: 0.01 }, head, cut, lite); // hair mass: denser, so the head holds its shape against the lamp
+    const chiffon = glass(stage, shared, env, { body: 0.03, edge: 0.6, glitter: 0.02 }, head, cut, lite);
+    const sparkle = glass(stage, shared, env, { body: 0.1, edge: 0.9, glitter: 0, sparkle: true }, head, cut, lite);
     const mirrorMat = mirrorMaterial(clipPlanes.girlMirror);
     // by part name (node names survive the optimiser; identical placeholder materials do not)
     const byPart: Record<string, THREE.Material> = {
@@ -351,7 +356,7 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
         if (mirror) obj.visible = false;
         return;
       }
-      if (HIDDEN.has(name) || name === "eyes") {
+      if (name === "eyes") {
         obj.visible = false;
         return;
       }
@@ -372,7 +377,7 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
       if ((obj.material as THREE.MeshPhysicalMaterial).depthWrite) backs.push(obj as THREE.Mesh);
     });
     // inner surfaces of the depth-writing glass, drawn just before it
-    for (const m of backs) {
+    for (const m of detail === "low" ? [] : backs) {
       const b = new THREE.Mesh(m.geometry, inside);
       b.renderOrder = 2.9;
       b.frustumCulled = false;
@@ -388,8 +393,8 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
     const clefGlass = mirror
       ? [mirrorMaterial(clipPlanes.clefMirror)]
       : [
-          glass(stage, shared, env, { body: 0.03, edge: 0.55, glitter: 0, solid: true, inside: true }, far, clipPlanes.clef),
-          glass(stage, shared, env, { body: 0.07, edge: 0.85, glitter: 0.012, solid: true }, far, clipPlanes.clef),
+          glass(stage, shared, env, { body: 0.03, edge: 0.55, glitter: 0, solid: true, inside: true }, far, clipPlanes.clef, lite),
+          glass(stage, shared, env, { body: 0.07, edge: 0.85, glitter: 0.012, solid: true }, far, clipPlanes.clef, lite),
         ];
     clefGlass.forEach((m, i) => {
       const mesh = new THREE.Mesh(clefGeometry(), m);
@@ -398,7 +403,7 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
       clef.add(mesh);
     });
     return { scene, fit, clef };
-  }, [gltf.scene, stage, shared, mirror, env]);
+  }, [gltf.scene, stage, shared, mirror, env, lite, detail]);
 
   const figure = useRef<THREE.Group>(null);
   const tmp = useMemo(() => new THREE.Vector3(), []);
@@ -427,7 +432,6 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
 
   return (
     <group scale={mirror ? [1, -1, 1] : [1, 1, 1]}>
-      {!mirror && <StageLights stage={stage} />}
       <group ref={figure}>
         <group position={fit.offset}>
           <primitive object={scene} />
@@ -439,7 +443,7 @@ export function SkaterModel({ stage, mirror = false }: { stage: StageUniforms; m
 }
 
 /** Lights for the glass highlights (the set pieces have their own shaders and ignore them). */
-function StageLights({ stage }: { stage: StageUniforms }) {
+export function StageLights({ stage }: { stage: StageUniforms }) {
   const back = useRef<THREE.DirectionalLight>(null);
   const kick = useRef<THREE.DirectionalLight>(null);
   useFrame(() => {

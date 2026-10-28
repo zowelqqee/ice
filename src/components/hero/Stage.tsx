@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -14,6 +14,8 @@ import {
   snowVertex,
   sprayFragment,
   sprayVertex,
+  screenVertex,
+  textureFragment,
   worldVertex,
 } from "./shaders/stage";
 import { LIGHT_BOTTOM, LIGHT_TOP, type StageUniforms } from "./uniforms";
@@ -86,19 +88,50 @@ export function Glow({ stage }: { stage: StageUniforms }) {
   );
 }
 
-/** The drawn arena behind her (shaders/stage.ts arenaFragment): faces the camera and fills the
- *  frame at a fixed distance, however the camera moves and tilts. */
+/** The drawn arena behind her (shaders/stage.ts arenaFragment). It depends only on the time and
+ *  the frame's shape, so it is painted into a half-resolution texture at 30 frames a second (it
+ *  is all soft light and haze) and shown on a plane that faces the camera and fills the frame at a
+ *  fixed distance, however the camera moves and tilts. Painting it every frame at full resolution
+ *  was the most expensive part of the scene. One half of the texture is painted per frame, so the
+ *  cost is spread evenly instead of landing on every other frame. */
+const ARENA_SCALE = 0.5;
+const ARENA_STEP = 1 / 30;
+
 export function Arena({ stage }: { stage: StageUniforms }) {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
+  const paint = useMemo(() => {
+    const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
+    const material = new THREE.ShaderMaterial({
+      vertexShader: screenVertex,
+      fragmentShader: arenaFragment,
+      depthTest: false,
+      depthWrite: false,
+      uniforms: { uTime: { value: 0 }, uAspect: { value: 16 / 9 } },
+    });
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+    quad.frustumCulled = false;
+    const scene = new THREE.Scene();
+    scene.add(quad);
+    return { target, material, scene, camera: new THREE.Camera(), at: [-1, -1], size: new THREE.Vector2() };
+  }, []);
   const mat = useMemo(
     () =>
       new THREE.ShaderMaterial({
         vertexShader: worldVertex,
-        fragmentShader: arenaFragment,
+        fragmentShader: textureFragment,
         depthWrite: false,
-        uniforms: { uTime: stage.uTime, uAspect: { value: 16 / 9 } },
+        uniforms: { uMap: { value: paint.target.texture } },
       }),
-    [stage],
+    [paint],
+  );
+  useEffect(
+    () => () => {
+      paint.target.dispose();
+      paint.material.dispose();
+      paint.scene.children.forEach((m) => (m as THREE.Mesh).geometry.dispose());
+      mat.dispose();
+    },
+    [paint, mat],
   );
   const ref = useRef<THREE.Mesh>(null);
   const dir = useMemo(() => new THREE.Vector3(), []);
@@ -112,7 +145,29 @@ export function Arena({ stage }: { stage: StageUniforms }) {
     m.quaternion.copy(cam.quaternion);
     const fh = 2 * dist * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
     m.scale.set(fh * cam.aspect * 1.02, fh * 1.02, 1);
-    mat.uniforms.uAspect.value = cam.aspect;
+
+    gl.getDrawingBufferSize(paint.size);
+    const w = Math.max(1, Math.round(paint.size.x * ARENA_SCALE));
+    const h = Math.max(1, Math.round(paint.size.y * ARENA_SCALE));
+    const u = paint.material.uniforms;
+    const t = stage.uTime.value;
+    const resized = paint.target.width !== w || paint.target.height !== h || u.uAspect.value !== cam.aspect;
+    const half = paint.at[0] <= paint.at[1] ? 0 : 1; // the staler one
+    if (!resized && Math.abs(t - paint.at[half]) < ARENA_STEP * 0.9) return;
+    if (paint.target.width !== w || paint.target.height !== h) paint.target.setSize(w, h);
+    const mid = Math.round(h / 2);
+    paint.target.scissorTest = !resized;
+    if (resized) paint.at.fill(t);
+    else {
+      paint.target.scissor.set(0, half ? mid : 0, w, half ? h - mid : mid);
+      paint.at[half] = t;
+    }
+    u.uTime.value = t;
+    u.uAspect.value = cam.aspect;
+    const prev = gl.getRenderTarget();
+    gl.setRenderTarget(paint.target);
+    gl.render(paint.scene, paint.camera);
+    gl.setRenderTarget(prev);
   });
   return (
     <mesh ref={ref} material={mat} renderOrder={-1} frustumCulled={false}>

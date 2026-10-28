@@ -3,11 +3,11 @@
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
-import { Bloom, ChromaticAberration, EffectComposer, Noise, SMAA, ToneMapping, Vignette } from "@react-three/postprocessing";
-import { BlendFunction, ToneMappingMode } from "postprocessing";
+import { ChromaticAberration, EffectComposer, Noise, SMAA, ToneMapping, Vignette, createEffectComponent } from "@react-three/postprocessing";
+import { BlendFunction, BloomEffect, ToneMappingMode } from "postprocessing";
 import * as THREE from "three";
 import { Skater } from "./Skater";
-import { SkaterModel, SKATER_MODEL } from "./SkaterModel";
+import { SkaterModel, SKATER_MODEL, StageLights } from "./SkaterModel";
 import { Trails } from "./Trails";
 import { Arena, Curtains, Glow, Ice, MorphRing, Snow, Spray, Trace } from "./Stage";
 import { MORPH_TIME, MORPH_TOP, curtains, morph, updateClipPlanes } from "./morph";
@@ -15,7 +15,7 @@ import { createStageUniforms, type StageUniforms } from "./uniforms";
 import { impulse, spin, stepSpin } from "@/lib/spin";
 import { heroScroll, pointer } from "@/lib/pointer";
 import { audio } from "@/lib/audio/engine";
-import { detectQuality, lower, presets, type Quality } from "@/lib/quality";
+import { detectQuality, lower, presets, type Quality, type Tier } from "@/lib/quality";
 
 // the page colour (--ink): the scene is a deep ice blue, never black
 const SCENE_BG = "#0b1d2e";
@@ -99,13 +99,23 @@ function MorphDirector() {
   return null;
 }
 
+/** Bloom worked out from a half-resolution copy of the frame: the glow is soft anyway, and at
+ *  full resolution its first passes cost more than everything else in the frame together. */
+class HalfBloomEffect extends BloomEffect {
+  setSize(width: number, height: number) {
+    super.setSize(Math.round(width / 2), Math.round(height / 2));
+  }
+}
+const HalfBloom = createEffectComponent(HalfBloomEffect);
+const BLOOM = { mipmapBlur: true, intensity: 0.55, luminanceThreshold: 0.8, luminanceSmoothing: 0.12, radius: 0.42 };
+
 function Effects({ q }: { q: Quality }) {
   if (q.post === "none") return null;
   const full = q.post === "full";
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
       {/* bloom only on true highlights (glints, blades, the lamp): the figure itself stays crisp */}
-      <Bloom mipmapBlur intensity={0.55} luminanceThreshold={0.8} luminanceSmoothing={0.12} radius={0.42} />
+      <HalfBloom blendFunction={BlendFunction.ADD} args={[BLOOM]} />
       <ToneMapping mode={ToneMappingMode.NEUTRAL} />
       <SMAA />
       {full ? (
@@ -133,6 +143,34 @@ function Ready({ onReady }: { onReady?: () => void }) {
   return null;
 }
 
+/** Her and her reflection, shown once the scene's shaders are compiled (hers, and those of parts
+ *  that show up later, like the ring of the change). They compile in the background where the
+ *  browser can (KHR_parallel_shader_compile), so no frame stalls on them. The lights stay outside
+ *  the hidden group: the shaders are built for the lights in view. */
+function Figures({ stage, detail, onReady }: { stage: StageUniforms; detail: Tier; onReady?: () => void }) {
+  const { gl, scene, camera } = useThree();
+  const [warm, setWarm] = useState(false);
+  useEffect(() => {
+    let live = true;
+    gl.compileAsync(scene, camera)
+      .catch(() => {})
+      .finally(() => live && setWarm(true));
+    return () => {
+      live = false;
+    };
+  }, [gl, scene, camera]);
+  return (
+    <>
+      <StageLights stage={stage} />
+      <group visible={warm}>
+        <SkaterModel stage={stage} detail={detail} mirror />
+        <SkaterModel stage={stage} detail={detail} />
+      </group>
+      {warm && <Ready onReady={onReady} />}
+    </>
+  );
+}
+
 /** If the character model fails to load, fall back to the raymarched dancer. */
 class ModelBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -146,6 +184,9 @@ class ModelBoundary extends Component<{ fallback: ReactNode; children: ReactNode
 
 function Scene({ q, dpr, model, onReady }: { q: Quality; dpr: number; model: boolean; onReady?: () => void }) {
   const stage = useMemo(() => createStageUniforms(), []);
+  // the glass is set up once, for the tier the device started at (rebuilding it later would
+  // recompile its shaders mid-show)
+  const [detail] = useState(q.tier);
   const sdf = (
     <>
       <Skater stage={stage} steps={q.marchSteps} mirror />
@@ -164,9 +205,7 @@ function Scene({ q, dpr, model, onReady }: { q: Quality; dpr: number; model: boo
       {model ? (
         <ModelBoundary fallback={sdf}>
           <Suspense fallback={null}>
-            <SkaterModel stage={stage} mirror />
-            <SkaterModel stage={stage} />
-            <Ready onReady={onReady} />
+            <Figures stage={stage} detail={detail} onReady={onReady} />
           </Suspense>
         </ModelBoundary>
       ) : (
@@ -221,7 +260,8 @@ export default function HeroCanvas({ onReady, active = true }: { onReady?: () =>
           setDpr((d) => Math.max(q.dpr[0], d * 0.8));
           setQ((cur) => (cur.tier === "low" ? cur : presets[lower(cur.tier)]));
         }}
-        onIncline={() => setDpr((d) => Math.min(q.dpr[1], d * 1.1))}
+        // never above the screen's own pixel density (on a 1x screen this used to climb to 1.6)
+        onIncline={() => setDpr((d) => Math.min(q.dpr[1], window.devicePixelRatio || 1, d * 1.1))}
       />
       <Scene q={q} dpr={dpr} model={model} onReady={onReady} />
       <Effects q={q} />

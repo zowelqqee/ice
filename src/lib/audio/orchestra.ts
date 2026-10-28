@@ -282,7 +282,7 @@ class Orchestra {
 
   /** Warm the cache while the section is in view (only after the visitor enabled sound). */
   preload() {
-    if (!audio.ctx) return;
+    if (!audio.enabled) return; // the graph is made ahead of time; sound may still be off
     INSTRUMENTS.forEach((n) => this.load(n));
   }
 

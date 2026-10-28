@@ -11,6 +11,24 @@ void main() {
 }
 `;
 
+// A quad straight onto the render target (clip space), for scenes painted into a texture.
+export const screenVertex = /* glsl */ `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}
+`;
+
+// Shows a painted texture as it is (the arena backdrop).
+export const textureFragment = /* glsl */ `
+uniform sampler2D uMap;
+varying vec2 vUv;
+void main() {
+  gl_FragColor = vec4(texture2D(uMap, vUv).rgb, 1.0);
+}
+`;
+
 // The main lighting rig hung far back over the rink, in frame units (height = 1, x scaled by the
 // aspect): drawn in the arena and mirrored in the ice, so both use this one layout.
 const rigGLSL = /* glsl */ `
@@ -85,11 +103,14 @@ void main() {
     vec2 d2 = p - c;
     float d = abs(length(d2) - R);
     float w = 0.004 + 0.003 * mod(fi, 3.0);
-    float arc = smoothstep(0.1, 0.7, sin(atan(d2.y, d2.x) + fi * 2.1));
-    traces += (1.0 - smoothstep(0.0, w, d)) * arc;
+    if (d < w) {    // the angle (atan) only on the line itself
+      float arc = smoothstep(0.1, 0.7, sin(atan(d2.y, d2.x) + fi * 2.1));
+      traces += (1.0 - smoothstep(0.0, w, d)) * arc;
+    }
   }
   traces = min(traces, 1.0) * 0.6;
-  float frostTex = fbm(p * 2.2 + 7.0) * 0.6 + fbm(p * 13.0) * 0.4;
+  // fine grain: two octaves (the finer ones only shimmered at a distance)
+  float frostTex = fbm(p * 2.2 + 7.0) * 0.6 + (vnoise(p * 13.0) * 0.5 + vnoise(p * 26.4 + 17.1) * 0.25) * 0.5;
   col += vec3(0.16, 0.22, 0.27) * frostTex * (0.4 + lit * 0.8);
   // the rig's lamps mirrored in the ice: a long streak under each, wider toward the viewer and
   // broken up by the surface (in frame units at this depth, so they line up with the lamps)
@@ -101,9 +122,11 @@ void main() {
   for (int k = 0; k < RIG_LAMPS; k++) {
     float lx = rigX(k, spread);
     float dxs = ((vWorld.x - cameraPosition.x) / fh - lx) / wid;
-    float broken = 0.5 + 0.5 * vnoise(vec2(dxs * 2.0 + float(k) * 7.0, depth * 3.0));
-    vec3 tint = mix(vec3(0.62, 0.8, 0.95), rigColor(k, uTime), 0.75);
-    col += tint * exp(-dxs * dxs) * broken * reach * rigClear(lx) * 0.45;
+    if (abs(dxs) < 3.5) {    // only near its own streak
+      float broken = 0.5 + 0.5 * vnoise(vec2(dxs * 2.0 + float(k) * 7.0, depth * 3.0));
+      vec3 tint = mix(vec3(0.62, 0.8, 0.95), rigColor(k, uTime), 0.75);
+      col += tint * exp(-dxs * dxs) * broken * reach * rigClear(lx) * 0.45;
+    }
   }
   // tight scratches carved by the spin
   float ang = atan(p.y, p.x);
@@ -112,8 +135,10 @@ void main() {
   col += vec3(0.8, 0.93, 1.0) * (traces * (0.35 + lit * 0.6 + pool) + scratches * (0.3 + pool));
 
   // frost thrown by the blade, a ring that builds while she spins fast
-  float frost = smoothstep(0.15, 0.4, r) * (1.0 - smoothstep(0.5, 1.4, r)) * fbm(p * 9.0 + ang);
-  col += vec3(0.6, 0.85, 1.0) * frost * uFrost * 0.45;
+  if (uFrost > 0.002 && r < 1.4) {
+    float frost = smoothstep(0.15, 0.4, r) * (1.0 - smoothstep(0.5, 1.4, r)) * fbm(p * 9.0 + ang);
+    col += vec3(0.6, 0.85, 1.0) * frost * uFrost * 0.45;
+  }
 
   // pin-point glints; they twinkle as the camera moves
   vec2 cell = floor(p * 70.0);
@@ -171,6 +196,8 @@ ${rigGLSL}
 // a spotlight seen from far away: a hot core, a soft bloom and a thin star of lens flare
 vec3 lamp(vec2 d, float size, vec3 hue) {
   float r2 = dot(d, d) / (size * size);
+  // far from the lamp and off its flare lines nothing of it shows: skip the exponentials
+  if (r2 > 0.06 && min(abs(d.x), abs(d.y)) > 0.012 * size) return vec3(0.0);
   float hot = exp(-r2 * 26000.0) * 1.8;
   float bloom = exp(-r2 * 1400.0) * 0.4 + exp(-r2 * 120.0) * 0.07;
   float star = (exp(-abs(d.y) * 900.0 / size) * exp(-abs(d.x) * 38.0 / size) + exp(-abs(d.x) * 900.0 / size) * exp(-abs(d.y) * 60.0 / size)) * 0.22;
@@ -186,8 +213,10 @@ void main() {
   // the hall: deep blue, darker high up
   vec3 c = mix(vec3(0.035, 0.07, 0.12), vec3(0.01, 0.022, 0.045), smoothstep(horizon, 1.0, uv.y));
 
-  // coloured haze hanging in the hall, lit by the show
-  c += mix(vec3(0.5, 0.2, 0.9), vec3(0.1, 0.5, 0.9), uv.x) * 0.03 * fbm(vec2(p.x * 2.0 - uTime * 0.03, uv.y * 3.0)) * smoothstep(0.95, 0.45, uv.y);
+  // coloured haze hanging in the hall, lit by the show (the beams pass through the same haze)
+  float hazeN = fbm(vec2(p.x * 4.0 + uTime * 0.04, p.y * 3.0 - uTime * 0.05));
+  float haze = 0.6 + 0.4 * hazeN;
+  c += mix(vec3(0.5, 0.2, 0.9), vec3(0.1, 0.5, 0.9), uv.x) * 0.03 * hazeN * smoothstep(0.95, 0.45, uv.y);
 
   // the stands: rows curving round the rink up into the dark, a full house. Wash lights glide over
   // the audience in show colours and pick out heads and shoulders; phone lights glow, cameras flash
@@ -262,7 +291,6 @@ void main() {
   }
   // the main rig, far back over the rink: moving heads in show colours, each throwing a beam at a
   // slant (neighbours crossing) that sweeps slowly and lands on the far ice
-  float haze = 0.6 + 0.4 * fbm(vec2(p.x * 4.0 + uTime * 0.04, p.y * 3.0 - uTime * 0.05));
   for (int i = 0; i < RIG_LAMPS; i++) {
     float lx = rigX(i, spread);
     vec2 at = vec2(lx, rigY(i));

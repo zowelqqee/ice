@@ -57,6 +57,7 @@ export function LoopVideo({
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [near, setNear] = useState(priority);
+  const [soon, setSoon] = useState(priority);
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
@@ -79,6 +80,15 @@ export function LoopVideo({
     return () => io.disconnect();
   }, [media.video, reduced]);
 
+  // a poster is fetched as soon as it is set: set it a screen or so ahead, like a lazy image
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || soon) return;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setSoon(true), { rootMargin: "150% 50%" });
+    io.observe(v);
+    return () => io.disconnect();
+  }, [soon, reduced]);
+
   if (!media.video || reduced) return <Still src={media.poster} alt={alt} className={className} priority={priority} />;
 
   return (
@@ -89,7 +99,7 @@ export function LoopVideo({
       loop
       playsInline
       preload={near ? "auto" : "none"}
-      poster={`${media.poster}.jpg`}
+      poster={soon ? `${media.poster}.jpg` : undefined}
       aria-label={alt || undefined}
       aria-hidden={alt ? undefined : true}
     >
