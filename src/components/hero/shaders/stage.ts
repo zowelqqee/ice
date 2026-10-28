@@ -19,6 +19,26 @@ float rigSpread(float aspect) { return max(aspect, 0.9); }
 float rigX(int i, float spread) { return (float(i) - 5.0) * 0.062 * spread; }
 float rigY(int i) { return 0.6 + abs(float(i) - 5.0) * 0.006; }
 float rigClear(float lx) { return smoothstep(0.07, 0.14, abs(lx)); }
+// show colours: each lamp holds a colour from the palette, then changes cue to the next
+vec3 showHue(float h) {
+  h = fract(h) * 5.0;
+  float f = smoothstep(0.72, 1.0, fract(h));
+  vec3 a = vec3(0.1, 0.78, 1.0);    // cyan
+  vec3 b = vec3(0.55, 0.28, 1.0);   // violet
+  if (h >= 1.0) { a = b; b = vec3(1.0, 0.2, 0.62); }    // magenta
+  if (h >= 2.0) { a = b; b = vec3(1.0, 0.56, 0.14); }   // amber
+  if (h >= 3.0) { a = b; b = vec3(0.28, 0.42, 1.0); }   // royal blue
+  if (h >= 4.0) { a = b; b = vec3(0.1, 0.78, 1.0); }
+  return mix(a, b, f);
+}
+vec3 rigColor(int i, float t) { return showHue(float(i) * 0.29 + t * 0.012); }
+// beam angle from straight down (radians): neighbours lean opposite ways so the beams cross, and
+// each sweeps slowly on its own
+float rigTilt(int i, float t) {
+  float fi = float(i);
+  float lean = mod(fi, 2.0) < 0.5 ? 0.42 : -0.42;
+  return lean + 0.26 * sin(t * (0.16 + mod(fi * 0.37, 0.12)) + fi * 1.7);
+}
 `;
 
 // Black ice: translucent enough to show the reflection, with the light pool from the back light,
@@ -82,7 +102,8 @@ void main() {
     float lx = rigX(k, spread);
     float dxs = ((vWorld.x - cameraPosition.x) / fh - lx) / wid;
     float broken = 0.5 + 0.5 * vnoise(vec2(dxs * 2.0 + float(k) * 7.0, depth * 3.0));
-    col += vec3(0.62, 0.8, 0.95) * exp(-dxs * dxs) * broken * reach * rigClear(lx) * 0.4;
+    vec3 tint = mix(vec3(0.62, 0.8, 0.95), rigColor(k, uTime), 0.75);
+    col += tint * exp(-dxs * dxs) * broken * reach * rigClear(lx) * 0.45;
   }
   // tight scratches carved by the spin
   float ang = atan(p.y, p.x);
@@ -133,10 +154,11 @@ void main() {
 }
 `;
 
-// The arena behind her, drawn (no footage): a dark, deep hall. Far back over the rink hangs the
-// rig, a row of small bright spotlights each pouring a narrow cone onto the far ice; a farther row
-// glints higher up, the stands recede into the dark, a few warm lights blur at the far end. The
-// space right behind her stays darkest, so the glass skater stands out.
+// The arena behind her, drawn (no footage): a deep hall in the middle of a show. Far back over the
+// rink hangs the rig, a row of bright spotlights in show colours, their beams slanting and crossing
+// as they sweep; a farther row glints higher up. Coloured washes glide over a full house, phone
+// lights glow and cameras flash in the stands. The space right behind her stays darkest, so the
+// glass skater stands out.
 export const arenaFragment = /* glsl */ `
 precision highp float;
 uniform float uTime;
@@ -147,11 +169,12 @@ ${noiseGLSL}
 ${rigGLSL}
 
 // a spotlight seen from far away: a hot core, a soft bloom and a thin star of lens flare
-vec3 lamp(vec2 d, float size) {
+vec3 lamp(vec2 d, float size, vec3 hue) {
   float r2 = dot(d, d) / (size * size);
-  float core = exp(-r2 * 26000.0) * 1.8 + exp(-r2 * 1400.0) * 0.32 + exp(-r2 * 120.0) * 0.05;
+  float hot = exp(-r2 * 26000.0) * 1.8;
+  float bloom = exp(-r2 * 1400.0) * 0.4 + exp(-r2 * 120.0) * 0.07;
   float star = (exp(-abs(d.y) * 900.0 / size) * exp(-abs(d.x) * 38.0 / size) + exp(-abs(d.x) * 900.0 / size) * exp(-abs(d.y) * 60.0 / size)) * 0.22;
-  return vec3(0.88, 0.95, 1.0) * (core + star);
+  return mix(vec3(1.0), hue, 0.35) * hot + hue * bloom + mix(vec3(1.0), hue, 0.6) * star;
 }
 
 void main() {
@@ -163,14 +186,42 @@ void main() {
   // the hall: deep blue, darker high up
   vec3 c = mix(vec3(0.035, 0.07, 0.12), vec3(0.01, 0.022, 0.045), smoothstep(horizon, 1.0, uv.y));
 
-  // the stands: rows curving round the rink up into the dark, full of small lights like a hall
-  // before the show (seat lights, phone screens, exit signs), denser and dimmer further up
+  // coloured haze hanging in the hall, lit by the show
+  c += mix(vec3(0.5, 0.2, 0.9), vec3(0.1, 0.5, 0.9), uv.x) * 0.03 * fbm(vec2(p.x * 2.0 - uTime * 0.03, uv.y * 3.0)) * smoothstep(0.95, 0.45, uv.y);
+
+  // the stands: rows curving round the rink up into the dark, a full house. Wash lights glide over
+  // the audience in show colours and pick out heads and shoulders; phone lights glow, cameras flash
   float above = uv.y - horizon;
   if (above > 0.0 && above < 0.5) {
     float bow = above + p.x * p.x * 0.035;
     float rows = smoothstep(0.35, 0.5, fract(bow * 62.0)) * 0.5 + 0.5;
     float fade = smoothstep(0.5, 0.04, above) * smoothstep(0.0, 0.03, above);
     c += vec3(0.016, 0.032, 0.05) * rows * fade;
+    // wash lights sweeping the audience: coloured pools gliding along the rows
+    vec3 wash = vec3(0.0);
+    for (int w = 0; w < 4; w++) {
+      float fw = float(w);
+      vec2 wc = vec2(sin(uTime * (0.09 + fw * 0.023) + fw * 2.1) * 0.45 * spread,
+                     horizon + 0.06 + 0.13 * (0.5 + 0.5 * sin(uTime * (0.06 + fw * 0.017) + fw * 4.0)));
+      vec2 wd = (p - wc) * vec2(1.0, 2.2);
+      wash += showHue(fw * 0.27 + 0.6 + uTime * 0.012) * exp(-dot(wd, wd) * 26.0);
+    }
+    // the audience where the light finds it: heads and shoulders in staggered rows, never a grid
+    vec2 g = vec2(p.x * 70.0, bow * 62.0);
+    g.x += mod(floor(g.y), 2.0) * 0.5;
+    vec2 seat = floor(g);
+    float hs = hash12(seat + 41.0);
+    vec2 f = (fract(g) - 0.5 - (vec2(hs, hash12(seat + 9.0)) - 0.5) * vec2(0.36, 0.16)) * (0.85 + 0.3 * fract(hs * 9.0));
+    float head = smoothstep(0.24, 0.15, length((f - vec2(0.0, 0.14)) * vec2(1.0, 0.9)));
+    float shoulders = smoothstep(0.32, 0.18, length((f - vec2(0.0, -0.36)) * vec2(0.7, 1.2)));
+    float crowd = max(head, shoulders) * step(0.08, hs);
+    c += wash * (0.1 * rows + 0.3 + 0.26 * crowd) * fade;
+    // now and then a camera flash somewhere in the crowd
+    vec2 fg = vec2(p.x * 40.0, bow * 30.0);
+    float slot = floor(uTime * 2.0);
+    float fh = hash12(floor(fg) + slot * 7.13);
+    float flash = step(0.9985, fh) * exp(-fract(uTime * 2.0) * 9.0) * smoothstep(0.22, 0.0, length(fract(fg) - 0.5));
+    c += vec3(1.0, 0.97, 0.92) * flash * fade * 2.4;
     for (int l = 0; l < 2; l++) {
       float sc = l == 0 ? 90.0 : 170.0;    // near rows, then a finer, farther layer
       vec2 g = vec2(p.x * sc, bow * sc * 0.69);
@@ -179,7 +230,7 @@ void main() {
       float tw = 0.65 + 0.35 * sin(uTime * (0.4 + h * 1.6) + h * 40.0);
       float dotMask = smoothstep(0.34, 0.0, length(fract(g) - 0.5 - (vec2(hash12(cell + 3.1), hash12(cell + 7.7)) - 0.5) * 0.4));
       vec3 hue = mix(vec3(0.55, 0.78, 1.0), vec3(1.0, 0.8, 0.52), step(0.55, fract(h * 7.0)));
-      float on = step(l == 0 ? 0.86 : 0.8, h);
+      float on = step(l == 0 ? 0.9 : 0.86, h);
       c += hue * on * dotMask * tw * fade * (l == 0 ? 0.9 : 0.5) * (0.45 + 0.55 * fract(h * 13.0));
     }
   }
@@ -207,24 +258,46 @@ void main() {
     float fi = float(i) - 7.0;
     float lx = fi * 0.045 * spread;
     vec2 d = p - vec2(lx, 0.705 + abs(fi) * 0.003);
-    c += lamp(d, 0.5) * 0.45 * rigClear(lx);
+    c += lamp(d, 0.5, showHue(fi * 0.41 + 0.5 + uTime * 0.012)) * 0.45 * rigClear(lx);
   }
-  // the main rig, far back over the rink: each lamp pours a narrow cone down onto the ice
+  // the main rig, far back over the rink: moving heads in show colours, each throwing a beam at a
+  // slant (neighbours crossing) that sweeps slowly and lands on the far ice
+  float haze = 0.6 + 0.4 * fbm(vec2(p.x * 4.0 + uTime * 0.04, p.y * 3.0 - uTime * 0.05));
   for (int i = 0; i < RIG_LAMPS; i++) {
     float lx = rigX(i, spread);
     vec2 at = vec2(lx, rigY(i));
-    float clear = rigClear(lx);    // nothing straight behind her
+    float clear = rigClear(lx);    // no lamp straight behind her
+    vec3 hue = rigColor(i, uTime);
     vec2 d = p - at;
-    c += lamp(d, 1.0) * clear;
-    float along = -d.y;
-    float across = abs(d.x + d.y * lx * 0.12);
-    float width = 0.004 + along * 0.11;
-    float cone = smoothstep(width, 0.0, across) * smoothstep(0.0, 0.03, along) * smoothstep(at.y - horizon + 0.01, 0.02, along);
-    float haze = 0.6 + 0.4 * fbm(vec2(p.x * 4.0 + uTime * 0.04, p.y * 3.0 - uTime * 0.05));
-    c += vec3(0.35, 0.55, 0.75) * cone * haze * 0.22 * clear;
-    // where the cone lands, a pool on the far ice
-    vec2 q = (p - vec2(lx * 1.04, horizon + 0.004)) * vec2(1.0, 7.0);
-    c += vec3(0.4, 0.62, 0.8) * exp(-dot(q, q) * 160.0) * 0.3 * clear;
+    c += lamp(d, 1.0, hue) * clear;
+    float th = rigTilt(i, uTime);
+    vec2 dir = vec2(sin(th), -cos(th));
+    float along = dot(d, dir);
+    float across = abs(d.x * dir.y - d.y * dir.x);
+    float reach = (at.y - horizon) / cos(th);    // along the beam to the far ice
+    float width = 0.006 + along * 0.17;
+    float cone = smoothstep(width, 0.0, across) * smoothstep(0.0, 0.025, along) * smoothstep(reach + 0.01, reach * 0.2, along);
+    c += hue * (cone * 0.36 + cone * cone * cone * 0.5) * haze * clear;
+    // where the beam lands, a pool on the far ice
+    vec2 q = (p - vec2(lx + dir.x * reach, horizon + 0.004)) * vec2(1.0, 7.0);
+    c += hue * exp(-dot(q, q) * 120.0) * 0.4 * clear;
+  }
+
+  // movers on the far end of the rink throw beams up into the haze, fanning out and sweeping
+  for (int i = 0; i < 6; i++) {
+    float fi = float(i);
+    float side = i < 3 ? -1.0 : 1.0;
+    float lx = side * (0.17 + mod(fi, 3.0) * 0.15) * spread;
+    vec2 d = p - vec2(lx, horizon + 0.012);
+    float th = side * (0.22 + mod(fi, 3.0) * 0.1) + 0.24 * sin(uTime * (0.21 + fi * 0.03) + fi * 2.4);
+    vec2 dir = vec2(sin(th), cos(th));
+    float along = dot(d, dir);
+    float across = abs(d.x * dir.y - d.y * dir.x);
+    float width = 0.005 + along * 0.13;
+    float beam = smoothstep(width, 0.0, across) * smoothstep(0.0, 0.03, along) * smoothstep(0.5, 0.08, along);
+    vec3 hue = showHue(fi * 0.33 + 0.15 + uTime * 0.012);
+    c += hue * (beam * 0.3 + beam * beam * beam * 0.35) * haze;
+    c += lamp(d, 0.6, hue) * 0.6;
   }
 
   // darkest right behind her: the space her figure is drawn against

@@ -17,7 +17,7 @@ const HeroCanvas = dynamic(() => import("./HeroCanvas"), { ssr: false });
 
 const TURNS_PER_HERO = 4.5;
 // bump when the poster frames are re-rendered (they keep their names)
-const POSTER_V = "?v=8";
+const POSTER_V = "?v=9";
 
 /** The title in the logo's own letterforms (vector shapes from the logo artwork), one group per
  *  letter so the scroll can pull them apart. */

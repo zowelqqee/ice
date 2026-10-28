@@ -19,6 +19,8 @@ import { detectQuality, lower, presets, type Quality } from "@/lib/quality";
 
 // the page colour (--ink): the scene is a deep ice blue, never black
 const SCENE_BG = "#0b1d2e";
+// scene clock for the poster capture (?still): beams crossing, washes on the stands
+const STILL_TIME = 40.5;
 
 function Director({ stage, dpr }: { stage: StageUniforms; dpr: number }) {
   const { camera, size } = useThree();
@@ -28,7 +30,8 @@ function Director({ stage, dpr }: { stage: StageUniforms; dpr: number }) {
 
   useFrame((state, dt) => {
     const cam = camera as THREE.PerspectiveCamera;
-    stage.uTime.value = state.clock.elapsedTime;
+    // the poster frame holds the show lights at one moment, so every capture is the same
+    stage.uTime.value = spin.still ? STILL_TIME : state.clock.elapsedTime;
     stage.uAngle.value = stepSpin(dt);
 
     // music drives the rim light
