@@ -15,6 +15,7 @@ import sys
 
 import bpy
 from mathutils import Matrix, Vector
+from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, os.path.dirname(__file__))
 import common as C  # noqa: E402
@@ -54,6 +55,13 @@ def rotate(pb, axis, deg, pivot=None):
     R = Matrix.Translation(p) @ Matrix.Rotation(math.radians(deg), 4, V(axis)) @ Matrix.Translation(-p)
     pb.matrix = R @ M
     _upd()
+
+
+def front(pb, rest_front=V((0, -1, 0))):
+    """Where the bone's front (rest -Y) points now: its rest orientation carried by its current
+    rotation, so a child bone keeps the twist its parent gave it."""
+    R = pb.matrix.to_3x3() @ pb.bone.matrix_local.to_3x3().inverted()
+    return perp(R @ rest_front, ydir(pb))
 
 
 def set_rot(pb, R):
@@ -97,6 +105,71 @@ def two_bone(root, target, a, b, pole):
     return mid, end
 
 
+# raised leg: where the ankle sits relative to the supporting knee, and how far the foot points
+# past the boot's rest angle (a laced skate boot hardly lets the ankle point). The skate hangs toe
+# down beside the supporting knee; the pose moves it out to her right until it clears the skin.
+RAISED_LIFT = V((-0.12, 0.02, 0.14))
+RAISED_POLE = V((-0.72, -0.62, 0.1))
+RAISED_POINT = 12.0
+RAISED_CLEAR = 0.008  # skate to supporting-leg skin, metres
+
+
+def raise_leg(P, support_knee, lift, point_deg, pole=RAISED_POLE):
+    """Right leg in passe: ankle at support_knee + lift, knee out to her right and forward. The foot
+    keeps its rest angle to the shin (the boot was built around it and stays undeformed), pointed
+    only point_deg more."""
+    for n in ("thigh_r", "calf_r", "foot_r", "ball_r"):
+        P[n].matrix_basis = Matrix()
+    _upd()
+    hip = P["thigh_r"].head.copy()
+    a = (P["thigh_r"].tail - hip).length
+    b = (P["calf_r"].tail - P["calf_r"].head).length
+    knee, ankle = two_bone(hip, support_knee + lift, a, b, pole)
+    t = (knee - hip).normalized()
+    s = (ankle - knee).normalized()
+    thigh_front = perp(-(s - t * s.dot(t)), t)
+    shin_front = perp(t, s)
+    # a pure hinge at the knee: the shin's front taken as the thigh left it (not the world's -Y,
+    # which twisted the shin and turned the boot's toe back into the supporting knee)
+    align(P["thigh_r"], ydir(P["thigh_r"]), front(P["thigh_r"]), t, thigh_front)
+    align(P["calf_r"], ydir(P["calf_r"]), front(P["calf_r"]), s, shin_front)
+    rotate(P["foot_r"], shin_front.cross(s), point_deg)
+    return knee, ankle
+
+
+def leg_surface(body, groups):
+    """Posed skin of one leg (armature deformation only) as a BVH tree."""
+    gi = {g.name: g.index for g in body.vertex_groups}
+    want = {gi[n] for n in groups}
+    keep = {v.index for v in body.data.vertices
+            if sum(g.weight for g in v.groups if g.group in want) > 0.5
+            and any(g.group == gi["body"] and g.weight > 0 for g in v.groups)}  # skin, no helpers
+    faces = [list(p.vertices) for p in body.data.polygons if all(i in keep for i in p.vertices)]
+    saved = [(m, m.show_viewport) for m in body.modifiers]
+    for m, _ in saved:
+        m.show_viewport = m.type == "ARMATURE"
+    dg = bpy.context.evaluated_depsgraph_get()
+    co = [body.matrix_world @ v.co for v in body.evaluated_get(dg).data.vertices]
+    for m, v in saved:
+        m.show_viewport = v
+    return BVHTree.FromPolygons(co, faces)
+
+
+def skate_gap(skin, side):
+    """Closest approach of one skate (boot, blade and all) to the skin; negative = inside it."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    gap = 0.1
+    for o in bpy.data.objects:
+        if o.type != "MESH" or not (o.name.startswith("skate_") and o.name.endswith("_" + side)):
+            continue
+        for v in o.evaluated_get(dg).data.vertices:
+            p = o.matrix_world @ v.co
+            loc, nrm, _, d = skin.find_nearest(p, 0.1)
+            if loc is not None:
+                gap = min(gap, d if (p - loc).dot(nrm) > 0 else -d)
+    return gap
+
+
 def apply_pose(arm):
     pose = arm.pose
     P = pose.bones
@@ -132,22 +205,19 @@ def apply_pose(arm):
     set_rot(P["ball_l"], R)
 
     # ---- raised leg (right): passe, knee out to her right and forward, skate at the left knee
-    hip = head("thigh_r")
-    target = support_knee + V((-0.095, 0.025, 0.05))
-    pole = V((-0.72, -0.62, 0.1))
-    knee, ankle = two_bone(hip, target, length("thigh_r"), length("calf_r"), pole)
-    t = (knee - hip).normalized()
-    s = (ankle - knee).normalized()
-    thigh_front = perp(-(s - t * s.dot(t)), t)
-    shin_front = perp(t, s)
-    align(P["thigh_r"], ydir(P["thigh_r"]), perp(rest_front, ydir(P["thigh_r"])), t, thigh_front)
-    align(P["calf_r"], ydir(P["calf_r"]), perp(rest_front, ydir(P["calf_r"])), s, shin_front)
-    # pointed as far as the boot allows: the foot continues the shin, bent ~25 deg
-    fdir = (s * 0.9 + shin_front * 0.42).normalized()
-    up = perp(shin_front, fdir)
-    align(P["foot_r"], ydir(P["foot_r"]), V((0, 0, 1)), fdir, up)
-    Rf = P["foot_r"].matrix.to_3x3() @ P["foot_r"].bone.matrix_local.to_3x3().inverted()
-    set_rot(P["ball_r"], Rf)
+    lift = RAISED_LIFT.copy()
+    raise_leg(P, support_knee, lift, RAISED_POINT)
+    body = bpy.data.objects.get("skater.body")
+    if body and "skate_boot_r" in bpy.data.objects:
+        skin = leg_surface(body, ("thigh_l", "calf_l"))
+        gap = skate_gap(skin, "r")
+        for _ in range(12):
+            if gap >= RAISED_CLEAR:
+                break
+            lift.x -= 0.6 * (RAISED_CLEAR - gap) + 0.001  # out to her right, approached from inside
+            raise_leg(P, support_knee, lift, RAISED_POINT)
+            gap = skate_gap(skin, "r")
+        print("raised skate: ankle at the supporting knee", tuple(round(c, 3) for c in lift), "clear by", round(gap, 4))
 
     # ---- arms: clavicles up, rounded arms overhead, wrists crossed above the head
     rotate(P["clavicle_l"], (0, 1, 0), -14)

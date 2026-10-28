@@ -18,5 +18,5 @@ for s in "${steps[@]}"; do
     hair)    "$HERE/run.sh" hair.py "$OUT/skated.blend" ;;
     sparkle) "$HERE/run.sh" sparkle.py "$OUT/haired.blend" ;;
     pose)    "$HERE/run.sh" pose.py "$OUT/sparkled.blend" ;;
-  esac 2>&1 | grep -E "^(skate|hair|veins|lifted|hidden|mounts|bust)|Error|Traceback|line [0-9]" || true
+  esac 2>&1 | grep -E "^(skate|hair|veins|lifted|hidden|mounts|bust|raised)|Error|Traceback|line [0-9]" || true
 done

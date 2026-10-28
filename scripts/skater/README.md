@@ -56,7 +56,7 @@ Outputs go to `~/ice/skater-build/out` (`posed.blend`, `skater_sheet.jpg`, …).
   - Scattered crystals over velvet and mesh.
   - Shader glitter (tilted micro-mirrors) mixed into velvet, mesh and chiffon.
 - **Stage** (`render_sheet.py`, `turntable.py`, `closeups.py`). Ice floor with skate tracings, a light rig that turns with the camera, and ice spray at the supporting blade. These are presentation only, not part of the model.
-- **Pose** (`pose.py`). Bones are aimed directly with an analytic two-bone IK, then the figure is raised onto the blades.
+- **Pose** (`pose.py`). Bones are aimed directly with an analytic two-bone IK, then the figure is raised onto the blades. The raised skate keeps the boot's rest angle to the shin (a stiff boot, no sock-like bend) and hangs toe down beside the supporting knee; the pose moves it out until it clears that leg's skin by `RAISED_CLEAR`.
 
 ## Still to do for the site
 
