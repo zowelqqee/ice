@@ -1,8 +1,7 @@
 // Single Web Audio graph for the whole site. Sound is on by default and nobody is asked (client,
-// October 2026). Most browsers only let it start from a gesture: entering on the Enter screen, or,
-// without it, the visitor's first click, tap or key anywhere; where the browser allows it without
-// one, the Enter screen starts by itself. A visitor who turns it off with the sound button keeps it
-// off on that visit's pages (the next visit's Enter screen starts with sound again).
+// October 2026). Where the browser lets it start on its own, the intro plays with the jingle;
+// elsewhere it starts with the visitor's first click, tap or key anywhere. A visitor who turns it
+// off with the sound button is remembered, and then it waits for the button.
 //
 //   sources ─► bus ─► master (mute) ─► analyser ─► destination
 //                └──► reverb send
@@ -283,7 +282,7 @@ export function rememberSound(on: boolean) {
     localStorage.setItem(PREF_KEY, on ? "on" : "off");
   } catch {}
 }
-function soundRefused() {
+export function soundRefused() {
   try {
     return localStorage.getItem(PREF_KEY) === "off";
   } catch {
@@ -293,14 +292,13 @@ function soundRefused() {
 
 export const audio = new AudioEngine();
 
-// sound on by default: start on the first gesture the browser accepts for it (not while the Enter
-// screen is up: entering starts it; not from the sound button itself: it toggles on its own)
+// sound on by default: start on the first gesture the browser accepts for it (not from the sound
+// button itself: it toggles on its own)
 if (typeof window !== "undefined") {
   const events = ["pointerdown", "keydown", "touchend", "click"] as const;
   const stop = () => events.forEach((e) => window.removeEventListener(e, start, true));
   const start = (e: Event) => {
     if (audio.enabled || soundRefused()) return stop();
-    if ("gate" in document.documentElement.dataset) return;
     if ((e.target as Element | null)?.closest?.("[data-sound-toggle]")) return stop();
     stop();
     void audio.enable();

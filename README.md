@@ -273,7 +273,7 @@ scripts/build-map.mjs       pre-renders the map land layer
 scripts/audit.mjs           brand-separation audit → AUDIT.md
 ```
 
-**Sound.** On by default, nobody is asked: entering on the Enter screen plays the intro with the jingle (where the browser allows sound without a click, it starts by itself; on a revisit, sound starts with the first click, tap or key). After that:
+**Sound.** On by default, nothing to press: the intro plays by itself once the hero is ready, with the jingle where the browser allows sound without a click; elsewhere sound starts with the visitor's first click, tap or key. After that:
 
 - Mute stays in the header.
 - The hero runs a generated ambient: an ice pad, blade hiss that follows spin speed, and glass bells on fast spins.
