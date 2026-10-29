@@ -43,12 +43,14 @@ production while the graphics only light the stage.
 render it as a video texture inside the same scene, and keep all light, ice and particle layers.
 The scene API (`spin` store, `Skater` slot) is built so the figure can be swapped.
 
-## D3. Key art (posters) is not used as-is
-The supplied posters are AI-generated illustrations with gold, gloss and painted faces. They
-conflict with the brief's visual language and its rule of no AI faces and no recognisable faces.
-Show cards use processed real footage frames (faces cropped or graded into silhouette) plus
-typographic titles. The Alice in Wonderland card has no footage, so it gets a typographic and
-light treatment until footage arrives.
+## D3. Key art (posters): now shown as-is, in the showcase and on show pages
+Until October 2026 the supplied posters (AI-generated illustrations with gold, gloss and painted
+faces) were kept off the site, as they conflicted with the brief's rule of no AI faces; the show
+cards were footage loops with typographic titles. On 2026-10-29 the client sent the full poster set
+and asked for it on the site. The showcase now shows each show's poster (16:9 tiles, 1:1 rows on
+phones) and the show page shows the 9:16 cut beside the story (`scripts/media/posters.sh`, metadata
+stripped). The show-page heroes stay footage. Shows without a poster keep the light-and-ice
+composition.
 
 ## D4. Typography: Instrument Serif (display) + Geist (text) + Geist Mono (data)
 Instrument Serif's narrow, high-contrast italic reads cinematic and editorial (A24 territory),

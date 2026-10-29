@@ -18,6 +18,7 @@
         "card": { "video": "/media/shows/aladdin/card", "poster": "/media/shows/aladdin/card" },
         "hero": { "video": "/media/shows/aladdin/hero", "poster": "/media/shows/aladdin/hero" }
       },
+      "posters": { "wide": "/media/shows/aladdin/poster-wide", "square": "/media/shows/aladdin/poster-square", "tall": "/media/shows/aladdin/poster-tall" },
       "track": "aladdin",
       "copyStatus": "draft"
     },
@@ -39,6 +40,7 @@
         "hero": { "video": "/media/shows/dracula/hero", "poster": "/media/shows/dracula/hero" },
         "extra": { "video": "/media/shows/dracula/silk", "poster": "/media/shows/dracula/silk" }
       },
+      "posters": { "wide": "/media/shows/dracula/poster-wide", "square": "/media/shows/dracula/poster-square", "tall": "/media/shows/dracula/poster-tall" },
       "track": "dracula",
       "copyStatus": "draft"
     },
@@ -58,6 +60,7 @@
       "media": {
         "card": { "poster": "/media/shows/alice/card" }
       },
+      "posters": { "wide": "/media/shows/alice/poster-wide", "square": "/media/shows/alice/poster-square", "tall": "/media/shows/alice/poster-tall" },
       "track": null,
       "copyStatus": "draft"
     },
@@ -78,6 +81,7 @@
         "card": { "video": "/media/shows/anastasia/card", "poster": "/media/shows/anastasia/card" },
         "hero": { "video": "/media/shows/anastasia/hero", "poster": "/media/shows/anastasia/hero" }
       },
+      "posters": { "wide": "/media/shows/anastasia/poster-wide", "square": "/media/shows/anastasia/poster-square", "tall": "/media/shows/anastasia/poster-tall" },
       "track": "anastasia",
       "copyStatus": "draft"
     },
@@ -92,6 +96,7 @@
       "facts": {},
       "accent": "#FFC94D",
       "media": {},
+      "posters": { "wide": "/media/shows/the-little-prince/poster-wide", "square": "/media/shows/the-little-prince/poster-square", "tall": "/media/shows/the-little-prince/poster-tall" },
       "track": null,
       "copyStatus": "draft"
     },

@@ -39,7 +39,7 @@ Footage has **recognisable faces in most shots**. Every frame used goes through 
 
 | File | Res | Notes |
 |---|---|---|
-| Aladdin / Dracula / Alice posters 16:9, 9:16, 1:1 | 1672x941, 941x1672, 1254² | **AI-generated key art**: illustrated faces, gold, gloss. Conflicts with the brief's visual language and its no-AI-faces rule, so it is **not used as-is**. Used only as heavily processed colour/texture reference for show accents, never showing faces. |
+| Aladdin / Dracula / Alice / Anastasia / Little Prince posters 16:9, 9:16, 1:1 (the last two sent 2026-10-29; all in `POSTERS 2026-10-29/`) | 1672x941, 941x1672, 1254² | **AI-generated key art**: illustrated faces, gold, gloss. Shown as-is since 2026-10-29 at the client's request (DECISIONS.md D3): `scripts/media/posters.sh` → `public/media/shows/<slug>/poster-wide/-square/-tall`. |
 | `Aladdin_Afisha-3_merged.png` / `.psd` | 3508x4962 | Cartoon-style print poster. Not used. |
 | Two couple cut-outs (Aladdin folder, non-Latin filenames) | ~1550x1780 | Cartoon and "realistic" couple cut-outs. **Not used.** |
 | `…ANASTASIA_BILETITALIA_print_02.tif` (non-Latin filename prefix) | 3508x4961 | Italian print poster with Italian tour dates (03–07.01.2027 Varese, Milano, Bari, Florence). Its backdrop is a recognisable landmark tied to the previous market, so it is **not used**. The dates are used as a tour-data hint (marked placeholder). |

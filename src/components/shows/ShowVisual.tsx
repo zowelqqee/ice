@@ -10,14 +10,11 @@ export function ShowVisual({
   variant = "card",
   className = "",
   priority = false,
-  motifClassName = "",
 }: {
   show: Show;
   variant?: "card" | "hero";
   className?: string;
   priority?: boolean;
-  /** placement of an unreleased show's word motif (e.g. lifted clear of a title laid over it) */
-  motifClassName?: string;
 }) {
   const media = variant === "hero" ? show.media.hero ?? show.media.card : show.media.card;
   if (media)
@@ -41,10 +38,10 @@ export function ShowVisual({
         <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-ink/40 via-transparent to-ink/70" />
       </div>
     );
-  return <Unreleased show={show} className={className} motifClassName={motifClassName} />;
+  return <Unreleased show={show} className={className} />;
 }
 
-function Unreleased({ show, className, motifClassName }: { show: Show; className: string; motifClassName: string }) {
+function Unreleased({ show, className }: { show: Show; className: string }) {
   const a = show.accent;
   const motif =
     show.slug === "the-little-prince" ? "star" : show.slug === "through-the-looking-glass" ? "mirror" : "rings";
@@ -75,12 +72,12 @@ function Unreleased({ show, className, motifClassName }: { show: Show; className
         {motif === "mirror" && <line x1="200" y1="40" x2="200" y2="470" stroke={a} strokeOpacity="0.6" strokeWidth="0.6" />}
       </svg>
       {motif === "mirror" && (
-        <div className={`absolute inset-0 flex items-center justify-center ${motifClassName}`}>
+        <div className="absolute inset-0 flex items-center justify-center">
           <span className="display text-[min(9vw,22cqw,30cqh)] text-ice/10 [transform:scaleX(-1)]">Alice</span>
         </div>
       )}
       {motif === "rings" && (
-        <div className={`absolute inset-0 flex items-center justify-center ${motifClassName}`}>
+        <div className="absolute inset-0 flex items-center justify-center">
           <span className="display text-[min(14vw,36cqw,45cqh)] text-transparent [-webkit-text-stroke:1px_rgba(234,246,255,0.18)]">
             {show.subtitle.split(" ").pop()}
           </span>

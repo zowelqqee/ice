@@ -5,7 +5,7 @@ import { gsap } from "gsap";
 import type { Show, TourDate, Track } from "@/lib/data";
 import { ticketState } from "@/lib/ticket";
 import { ShowVisual } from "./ShowVisual";
-import { LoopVideo } from "../media/Media";
+import { LoopVideo, Still } from "../media/Media";
 import { BladeLink } from "../shell/Transition";
 import { IceButton } from "../ui/IceButton";
 import { player } from "@/lib/audio/music";
@@ -128,6 +128,11 @@ export function ShowPage({
           )}
         </div>
         <aside className="md:col-span-4 md:col-start-9">
+          {show.posters && (
+            <div data-reveal className="mb-10 max-w-sm md:max-w-none">
+              <Still src={show.posters.tall} alt={`${show.title} ${show.subtitle}: poster`} width={720} height={1280} className="h-auto w-full" />
+            </div>
+          )}
           {(show.facts.duration || show.facts.age) && (
             <dl data-reveal className="grid grid-cols-2 border-t border-deep">
               {show.facts.duration && (

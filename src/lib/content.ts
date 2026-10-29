@@ -50,6 +50,7 @@ function toShow(r: ShowRow): AdminShow {
     facts: { duration: r.duration || undefined, age: r.age || undefined },
     accent: r.accent,
     media: parseJson<Show["media"]>(r.media, {}),
+    posters: fileShows.find((f) => f.slug === r.slug)?.posters,
     track: r.track,
     published: r.published,
     position: r.position,
