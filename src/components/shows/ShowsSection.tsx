@@ -11,11 +11,11 @@ function statusLabel(s: Show, t: Dictionary["shows"]) {
 
 /** One show in the showcase: a row with a small picture on phones, a tile with the title over the
  *  picture from tablets up. The whole card opens the show. */
-function Card({ show, i, t }: { show: Show; i: number; t: Dictionary["shows"] }) {
+function Card({ show, i, t, wide }: { show: Show; i: number; t: Dictionary["shows"]; wide: boolean }) {
   const released = show.status === "touring";
   return (
     <article
-      className="group relative flex h-full gap-4 md:block md:aspect-[5/4] md:overflow-hidden lg:aspect-auto"
+      className={`group relative flex h-full gap-4 md:block md:overflow-hidden lg:aspect-auto ${wide ? "md:aspect-[5/2]" : "md:aspect-[5/4]"}`}
       style={{ "--a": show.accent } as React.CSSProperties}
       aria-labelledby={`show-${show.slug}`}
     >
@@ -26,7 +26,7 @@ function Card({ show, i, t }: { show: Show; i: number; t: Dictionary["shows"] })
       <div className="relative aspect-[4/5] w-[30%] max-w-32 shrink-0 overflow-hidden md:absolute md:inset-0 md:aspect-auto md:w-auto md:max-w-none">
         <ShowVisual
           show={show}
-          motifClassName="md:pb-[40%]"
+          motifClassName="md:pb-[min(40%,8rem)]"
           className="h-full w-full transition-transform duration-[1200ms] ease-[var(--ease-glide)] group-hover:scale-[1.04]"
         />
         {/* accent edge light */}
@@ -59,10 +59,21 @@ function Card({ show, i, t }: { show: Show; i: number; t: Dictionary["shows"] })
   );
 }
 
+/** How the tiles share a wide screen, for any number of shows: four or three to a row, whichever
+ *  leaves fewer empty places (eight: two rows of four, six: two rows of three), and the tiles of a
+ *  short last row widen to fill it, so there are never holes. Spans are twelfths of the row. */
+function wideLayout(n: number) {
+  const empty = (c: number) => (c - (n % c)) % c;
+  const cols = n <= 4 ? Math.max(n, 1) : empty(3) < empty(4) ? 3 : 4;
+  const last = n % cols || cols;
+  return { rows: Math.ceil(n / cols), span: (i: number) => 12 / (i >= n - last ? last : cols) };
+}
+
 /** The repertoire as a showcase right after the hero: every show in view at once. Phones get a
- *  list to swipe down through, tablets two columns, wider screens rows of four that fill one
- *  screen together (eight shows: two rows). */
+ *  list to swipe down through, tablets two columns (an odd last show takes the whole row), wider
+ *  screens rows of three or four that fill one screen together (up to eight shows). */
 export function ShowsSection({ t, shows }: { t: Dictionary["shows"]; shows: Show[] }) {
+  const wide = wideLayout(shows.length);
   return (
     <section
       id="shows"
@@ -86,14 +97,21 @@ export function ShowsSection({ t, shows }: { t: Dictionary["shows"]; shows: Show
       </header>
 
       <ol
-        className="relative grid gap-4 md:grid-cols-2 lg:min-h-0 lg:flex-1 lg:grid-cols-4 lg:grid-rows-[repeat(var(--rows),minmax(210px,1fr))]"
-        style={{ "--rows": Math.ceil(shows.length / 4) } as React.CSSProperties}
+        className="relative grid gap-4 md:grid-cols-2 lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:grid-rows-[repeat(var(--rows),minmax(210px,1fr))]"
+        style={{ "--rows": wide.rows } as React.CSSProperties}
       >
-        {shows.map((s, i) => (
-          <li key={s.slug}>
-            <Card show={s} i={i} t={t} />
-          </li>
-        ))}
+        {shows.map((s, i) => {
+          const alone = shows.length % 2 === 1 && i === shows.length - 1;
+          return (
+            <li
+              key={s.slug}
+              className={`lg:[grid-column:span_var(--span)/span_var(--span)] ${alone ? "md:col-span-2" : ""}`}
+              style={{ "--span": wide.span(i) } as React.CSSProperties}
+            >
+              <Card show={s} i={i} t={t} wide={alone} />
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

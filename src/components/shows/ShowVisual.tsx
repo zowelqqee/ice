@@ -49,7 +49,7 @@ function Unreleased({ show, className, motifClassName }: { show: Show; className
   const motif =
     show.slug === "the-little-prince" ? "star" : show.slug === "through-the-looking-glass" ? "mirror" : "rings";
   return (
-    <div className={`relative overflow-hidden bg-abyss [container-type:inline-size] ${className}`} aria-hidden>
+    <div className={`relative overflow-hidden bg-abyss [container-type:size] ${className}`} aria-hidden>
       {/* frost grain */}
       <svg className="absolute inset-0 h-full w-full opacity-[0.22] mix-blend-screen" preserveAspectRatio="none">
         <filter id={`frost-${show.slug}`}>
@@ -76,12 +76,12 @@ function Unreleased({ show, className, motifClassName }: { show: Show; className
       </svg>
       {motif === "mirror" && (
         <div className={`absolute inset-0 flex items-center justify-center ${motifClassName}`}>
-          <span className="display text-[min(9vw,22cqw)] text-ice/10 [transform:scaleX(-1)]">Alice</span>
+          <span className="display text-[min(9vw,22cqw,30cqh)] text-ice/10 [transform:scaleX(-1)]">Alice</span>
         </div>
       )}
       {motif === "rings" && (
         <div className={`absolute inset-0 flex items-center justify-center ${motifClassName}`}>
-          <span className="display text-[min(14vw,36cqw)] text-transparent [-webkit-text-stroke:1px_rgba(234,246,255,0.18)]">
+          <span className="display text-[min(14vw,36cqw,45cqh)] text-transparent [-webkit-text-stroke:1px_rgba(234,246,255,0.18)]">
             {show.subtitle.split(" ").pop()}
           </span>
         </div>
