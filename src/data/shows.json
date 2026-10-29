@@ -121,7 +121,11 @@
       "highlights": [],
       "facts": {},
       "accent": "#C9D6FF",
-      "media": {},
+      "media": {
+        "posterWide": { "poster": "/media/shows/through-the-looking-glass/poster-wide" },
+        "posterSquare": { "poster": "/media/shows/through-the-looking-glass/poster-square" },
+        "posterTall": { "poster": "/media/shows/through-the-looking-glass/poster-tall" }
+      },
       "track": null,
       "copyStatus": "draft"
     },

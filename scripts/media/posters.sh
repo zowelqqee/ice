@@ -38,5 +38,6 @@ show dracula           "Dracula_16x9.PNG"        "Dracula_sq.PNG"        "Dracul
 show alice             "Alice in W_16x9.PNG"     "Alice in W_sq.PNG"     "Alice in W_9x16.PNG"
 show anastasia         "IMG_5424.PNG"            "IMG_5425.PNG"          "IMG_5423.PNG"
 show the-little-prince "IMG_5408.PNG"            "IMG_5409.PNG"          "IMG_5407.PNG"
+show through-the-looking-glass "IMG_5415.PNG"     "IMG_5417.PNG"          "IMG_5416.PNG"
 
 find "$OUT" -name 'poster-*' -type f | sort | xargs ls -la | awk '{printf "%8d %s\n", $5, $9}'

@@ -193,14 +193,17 @@ async function seed({ db, events, shows, tracks }: DbHandle) {
   }
 }
 
-/** Once, for a database filled before October 2026: the posters that ship with the site go into
- *  the shows that have none, so from then on the admin can replace or remove them like any picture
- *  (a poster removed later stays removed). A setting marks the step as done. */
+/** Once per show: the posters that ship with the site go into a show that has none in the
+ *  database, so from then on the admin can replace or remove them like any picture (a poster removed
+ *  later stays removed). A setting per show marks it as done, so a poster added to the files later
+ *  still arrives. The first round (October 2026) kept one setting for the five shows it covered. */
 async function addPosters({ db, shows, settings }: DbHandle) {
-  const done = "posters-2026-10";
-  if ((await db.select({ key: settings.key }).from(settings).where(eq(settings.key, done))).length) return;
+  const keys = new Set((await db.select({ key: settings.key }).from(settings)).map((r) => r.key));
+  const firstRound = keys.has("posters-2026-10") ? ["aladdin", "dracula", "alice", "anastasia", "the-little-prince"] : [];
   const now = Date.now();
   for (const file of showsJson.shows) {
+    const done = `posters:${file.slug}`;
+    if (keys.has(done) || firstRound.includes(file.slug)) continue;
     const m = file.media as Record<string, unknown>;
     const cuts = Object.fromEntries(["posterWide", "posterSquare", "posterTall"].filter((k) => m[k]).map((k) => [k, m[k]]));
     if (!Object.keys(cuts).length) continue;
@@ -210,8 +213,8 @@ async function addPosters({ db, shows, settings }: DbHandle) {
     try {
       media = JSON.parse(row.media) as Record<string, unknown>;
     } catch {}
-    if (media.posterWide || media.posterSquare || media.posterTall) continue;
-    await db.update(shows).set({ media: JSON.stringify({ ...media, ...cuts }), updatedAt: now }).where(eq(shows.slug, file.slug));
+    if (!(media.posterWide || media.posterSquare || media.posterTall))
+      await db.update(shows).set({ media: JSON.stringify({ ...media, ...cuts }), updatedAt: now }).where(eq(shows.slug, file.slug));
+    await db.insert(settings).values({ key: done, value: "true", updatedAt: now }).onConflictDoNothing();
   }
-  await db.insert(settings).values({ key: done, value: "true", updatedAt: now }).onConflictDoNothing();
 }
