@@ -1,5 +1,5 @@
 import { currentAdmin, sameOrigin } from "@/lib/auth";
-import { isSlot, processAudio, processVisual, type MediaKind } from "@/lib/media";
+import { imageOnly, isSlot, processAudio, processVisual, type MediaKind } from "@/lib/media";
 import { deleteFiles, isKey, storageMode } from "@/lib/storage";
 import { isSlug } from "@/lib/content";
 
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     }
     if (!isSlot(body?.slot)) return refuse("Bad request.");
     if (kind === "audio") return refuse("Choose an image or a video.");
-    if (body.slot === "og" && kind !== "image") return refuse("Use an image for the share picture.");
+    if (imageOnly(body.slot) && kind !== "image") return refuse(body.slot === "og" ? "Use an image for the share picture." : "Use an image for the poster.");
     const folder = body.slot === "og" ? "site" : `shows/${owner}`;
     return Response.json({ media: await processVisual(incoming, kind, body.slot, folder) });
   } catch (e) {

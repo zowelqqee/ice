@@ -1,4 +1,4 @@
-import type { Posters, Show } from "@/lib/data";
+import type { Show } from "@/lib/data";
 import { ShowVisual } from "./ShowVisual";
 import { BladeLink } from "../shell/Transition";
 import type { Dictionary } from "@/i18n";
@@ -11,16 +11,16 @@ function statusLabel(s: Show, t: Dictionary["shows"]) {
 
 /** The poster: the square cut in the phone list, the wide cut from tablets up (one image, the
  *  browser picks the file). The title is in the caption, so the picture itself has no alt text. */
-function PosterImage({ posters, className }: { posters: Posters; className: string }) {
-  const wide = "(min-width: 768px)";
+function PosterImage({ wide, square, className }: { wide: string; square: string; className: string }) {
+  const tablet = "(min-width: 768px)";
   return (
     <picture>
-      <source media={wide} srcSet={`${posters.wide}.avif`} type="image/avif" />
-      <source media={wide} srcSet={`${posters.wide}.webp`} type="image/webp" />
-      <source media={wide} srcSet={`${posters.wide}.jpg`} />
-      <source srcSet={`${posters.square}.avif`} type="image/avif" />
-      <source srcSet={`${posters.square}.webp`} type="image/webp" />
-      <img src={`${posters.square}.jpg`} alt="" width={480} height={480} loading="lazy" decoding="async" className={className} />
+      <source media={tablet} srcSet={`${wide}.avif`} type="image/avif" />
+      <source media={tablet} srcSet={`${wide}.webp`} type="image/webp" />
+      <source media={tablet} srcSet={`${wide}.jpg`} />
+      <source srcSet={`${square}.avif`} type="image/avif" />
+      <source srcSet={`${square}.webp`} type="image/webp" />
+      <img src={`${square}.jpg`} alt="" width={480} height={480} loading="lazy" decoding="async" className={className} />
     </picture>
   );
 }
@@ -30,6 +30,9 @@ function PosterImage({ posters, className }: { posters: Posters; className: stri
  *  composition in the same place. The whole card opens the show. */
 function Card({ show, i, t }: { show: Show; i: number; t: Dictionary["shows"] }) {
   const released = show.status === "touring";
+  // a missing cut is stood in for by the other one (cropped to fill)
+  const wide = show.media.posterWide?.poster ?? show.media.posterSquare?.poster;
+  const square = show.media.posterSquare?.poster ?? wide;
   const zoom = "transition-transform duration-[1200ms] ease-[var(--ease-glide)] group-hover:scale-[1.04]";
   return (
     <article
@@ -42,8 +45,8 @@ function Card({ show, i, t }: { show: Show; i: number; t: Dictionary["shows"] })
       </BladeLink>
 
       <div className="relative aspect-square w-[30%] max-w-32 shrink-0 overflow-hidden bg-abyss md:aspect-video md:w-full md:max-w-none">
-        {show.posters ? (
-          <PosterImage posters={show.posters} className={`absolute inset-0 h-full w-full object-cover ${zoom}`} />
+        {wide && square ? (
+          <PosterImage wide={wide} square={square} className={`absolute inset-0 h-full w-full object-cover ${zoom}`} />
         ) : (
           <ShowVisual show={show} className={`h-full w-full ${zoom}`} />
         )}

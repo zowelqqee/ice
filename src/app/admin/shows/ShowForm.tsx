@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import type { MediaRef } from "@/lib/data";
+import type { Show } from "@/lib/data";
 import type { FormState } from "../content-actions";
 import { CheckField, FormErrors, SelectField, TextArea, TextField } from "../fields";
 import { ShowMediaField } from "../MediaFields";
@@ -21,7 +21,7 @@ export interface ShowFormValues {
   accent: string;
   track: string;
   published: boolean;
-  media: Partial<Record<"card" | "hero" | "extra", MediaRef>>;
+  media: Show["media"];
 }
 
 const slugify = (s: string) =>

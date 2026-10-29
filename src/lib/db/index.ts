@@ -1,7 +1,7 @@
 import "server-only";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { count, sql } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { drizzle as drizzleLibsql, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
 import tourJson from "@/data/tour.json";
@@ -123,6 +123,7 @@ async function open(): Promise<DbHandle> {
     h = { db, events: sqliteEvents, attempts: sqliteAttempts, shows: sqliteShows, tracks: sqliteTracks, settings: sqliteSettings, driver };
   }
   await seed(h);
+  await addPosters(h);
   return h;
 }
 
@@ -190,4 +191,27 @@ async function seed({ db, events, shows, tracks }: DbHandle) {
     }));
     if (rows.length) await db.insert(tracks).values(rows);
   }
+}
+
+/** Once, for a database filled before October 2026: the posters that ship with the site go into
+ *  the shows that have none, so from then on the admin can replace or remove them like any picture
+ *  (a poster removed later stays removed). A setting marks the step as done. */
+async function addPosters({ db, shows, settings }: DbHandle) {
+  const done = "posters-2026-10";
+  if ((await db.select({ key: settings.key }).from(settings).where(eq(settings.key, done))).length) return;
+  const now = Date.now();
+  for (const file of showsJson.shows) {
+    const m = file.media as Record<string, unknown>;
+    const cuts = Object.fromEntries(["posterWide", "posterSquare", "posterTall"].filter((k) => m[k]).map((k) => [k, m[k]]));
+    if (!Object.keys(cuts).length) continue;
+    const [row] = await db.select({ media: shows.media }).from(shows).where(eq(shows.slug, file.slug));
+    if (!row) continue;
+    let media: Record<string, unknown> = {};
+    try {
+      media = JSON.parse(row.media) as Record<string, unknown>;
+    } catch {}
+    if (media.posterWide || media.posterSquare || media.posterTall) continue;
+    await db.update(shows).set({ media: JSON.stringify({ ...media, ...cuts }), updatedAt: now }).where(eq(shows.slug, file.slug));
+  }
+  await db.insert(settings).values({ key: done, value: "true", updatedAt: now }).onConflictDoNothing();
 }

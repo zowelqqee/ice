@@ -15,10 +15,12 @@
       "facts": { "duration": "1 h 30 min", "age": "6+" },
       "accent": "#2EE6C5",
       "media": {
+        "posterWide": { "poster": "/media/shows/aladdin/poster-wide" },
+        "posterSquare": { "poster": "/media/shows/aladdin/poster-square" },
+        "posterTall": { "poster": "/media/shows/aladdin/poster-tall" },
         "card": { "video": "/media/shows/aladdin/card", "poster": "/media/shows/aladdin/card" },
         "hero": { "video": "/media/shows/aladdin/hero", "poster": "/media/shows/aladdin/hero" }
       },
-      "posters": { "wide": "/media/shows/aladdin/poster-wide", "square": "/media/shows/aladdin/poster-square", "tall": "/media/shows/aladdin/poster-tall" },
       "track": "aladdin",
       "copyStatus": "draft"
     },
@@ -36,11 +38,13 @@
       "facts": { "duration": "TBC", "age": "TBC" },
       "accent": "#FF2E4D",
       "media": {
+        "posterWide": { "poster": "/media/shows/dracula/poster-wide" },
+        "posterSquare": { "poster": "/media/shows/dracula/poster-square" },
+        "posterTall": { "poster": "/media/shows/dracula/poster-tall" },
         "card": { "video": "/media/shows/dracula/card", "poster": "/media/shows/dracula/card" },
         "hero": { "video": "/media/shows/dracula/hero", "poster": "/media/shows/dracula/hero" },
         "extra": { "video": "/media/shows/dracula/silk", "poster": "/media/shows/dracula/silk" }
       },
-      "posters": { "wide": "/media/shows/dracula/poster-wide", "square": "/media/shows/dracula/poster-square", "tall": "/media/shows/dracula/poster-tall" },
       "track": "dracula",
       "copyStatus": "draft"
     },
@@ -58,9 +62,11 @@
       "facts": { "duration": "TBC", "age": "TBC" },
       "accent": "#8FB8FF",
       "media": {
+        "posterWide": { "poster": "/media/shows/alice/poster-wide" },
+        "posterSquare": { "poster": "/media/shows/alice/poster-square" },
+        "posterTall": { "poster": "/media/shows/alice/poster-tall" },
         "card": { "poster": "/media/shows/alice/card" }
       },
-      "posters": { "wide": "/media/shows/alice/poster-wide", "square": "/media/shows/alice/poster-square", "tall": "/media/shows/alice/poster-tall" },
       "track": null,
       "copyStatus": "draft"
     },
@@ -78,10 +84,12 @@
       "facts": { "duration": "TBC", "age": "TBC" },
       "accent": "#F2D7A6",
       "media": {
+        "posterWide": { "poster": "/media/shows/anastasia/poster-wide" },
+        "posterSquare": { "poster": "/media/shows/anastasia/poster-square" },
+        "posterTall": { "poster": "/media/shows/anastasia/poster-tall" },
         "card": { "video": "/media/shows/anastasia/card", "poster": "/media/shows/anastasia/card" },
         "hero": { "video": "/media/shows/anastasia/hero", "poster": "/media/shows/anastasia/hero" }
       },
-      "posters": { "wide": "/media/shows/anastasia/poster-wide", "square": "/media/shows/anastasia/poster-square", "tall": "/media/shows/anastasia/poster-tall" },
       "track": "anastasia",
       "copyStatus": "draft"
     },
@@ -95,8 +103,11 @@
       "highlights": [],
       "facts": {},
       "accent": "#FFC94D",
-      "media": {},
-      "posters": { "wide": "/media/shows/the-little-prince/poster-wide", "square": "/media/shows/the-little-prince/poster-square", "tall": "/media/shows/the-little-prince/poster-tall" },
+      "media": {
+        "posterWide": { "poster": "/media/shows/the-little-prince/poster-wide" },
+        "posterSquare": { "poster": "/media/shows/the-little-prince/poster-square" },
+        "posterTall": { "poster": "/media/shows/the-little-prince/poster-tall" }
+      },
       "track": null,
       "copyStatus": "draft"
     },

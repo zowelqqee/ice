@@ -59,9 +59,9 @@ export default async function ShowsPage({ searchParams }: { searchParams: Promis
               ))}
             </div>
             <div className="relative h-20 w-16 shrink-0 overflow-hidden rounded" style={{ background: s.accent }}>
-              {s.media.card && (
+              {(s.media.posterSquare ?? s.media.card) && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={`${s.media.card.poster}.jpg`} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                <img src={`${(s.media.posterSquare ?? s.media.card)!.poster}.jpg`} alt="" className="absolute inset-0 h-full w-full object-cover" />
               )}
             </div>
             <div className="min-w-0 flex-1">

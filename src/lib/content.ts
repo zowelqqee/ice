@@ -50,7 +50,6 @@ function toShow(r: ShowRow): AdminShow {
     facts: { duration: r.duration || undefined, age: r.age || undefined },
     accent: r.accent,
     media: parseJson<Show["media"]>(r.media, {}),
-    posters: fileShows.find((f) => f.slug === r.slug)?.posters,
     track: r.track,
     published: r.published,
     position: r.position,
@@ -256,10 +255,10 @@ export function parseShow(form: FormData, { trackIds }: { trackIds: string[] }):
 
   const media: Show["media"] = {};
   const rawMedia = parseJson<Record<string, unknown>>(String(form.get("media") ?? "{}"), {});
-  for (const slot of ["card", "hero", "extra"] as const) {
+  for (const slot of ["card", "hero", "extra", "posterWide", "posterSquare", "posterTall"] as const) {
     if (rawMedia[slot] == null) continue;
     const ref = parseMediaRef(rawMedia[slot]);
-    if (!ref) errors.media = "A picture reference is invalid; upload it again.";
+    if (!ref || (slot.startsWith("poster") && ref.video)) errors.media = "A picture reference is invalid; upload it again.";
     else media[slot] = ref;
   }
   if (Object.keys(errors).length) return { ok: false, errors };

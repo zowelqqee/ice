@@ -128,9 +128,9 @@ export function ShowPage({
           )}
         </div>
         <aside className="md:col-span-4 md:col-start-9">
-          {show.posters && (
+          {show.media.posterTall && (
             <div data-reveal className="mb-10 max-w-sm md:max-w-none">
-              <Still src={show.posters.tall} alt={`${show.title} ${show.subtitle}: poster`} width={720} height={1280} className="h-auto w-full" />
+              <Still src={show.media.posterTall.poster} alt={`${show.title} ${show.subtitle}: poster`} width={720} height={1280} className="h-auto w-full" />
             </div>
           )}
           {(show.facts.duration || show.facts.age) && (

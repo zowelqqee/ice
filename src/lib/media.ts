@@ -24,9 +24,14 @@ export const SLOTS = {
   hero: { w: 1280, h: 720, label: "Show page header (landscape)" },
   extra: { w: 1280, h: 720, label: "Extra loop on the show page (landscape)" },
   og: { w: 1200, h: 630, label: "Share image (links in messengers and social networks)" },
+  posterWide: { w: 1280, h: 720, label: "Poster, 16:9 (showcase tiles)" },
+  posterSquare: { w: 720, h: 720, label: "Poster, 1:1 (showcase on phones)" },
+  posterTall: { w: 720, h: 1280, label: "Poster, 9:16 (show page)" },
 } as const;
 export type Slot = keyof typeof SLOTS;
 export const isSlot = (s: unknown): s is Slot => typeof s === "string" && s in SLOTS;
+/** Slots that take a still image only (no video). */
+export const imageOnly = (s: Slot) => s === "og" || s.startsWith("poster");
 
 export const LIMITS = {
   image: 40 * 1024 * 1024,
@@ -100,7 +105,7 @@ export async function processVisual(incoming: string, kind: MediaKind, slot: Slo
       await stills(input, key, w, h);
       return { poster: `/${key}` };
     }
-    if (kind !== "video" || slot === "og") throw new Error("Use an image here.");
+    if (kind !== "video" || imageOnly(slot)) throw new Error("Use an image here.");
     const out = join(work, "out.mp4");
     await ffmpeg([
       "-i", input, "-t", String(MAX_VIDEO_SECONDS), "-an", "-sn", "-dn",

@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const show = await getShowBySlug(slug);
   if (!show) return {};
   const title = `${show.title} ${show.subtitle}`;
-  const image = show.media.hero?.poster ?? show.media.card?.poster;
+  const image = show.media.posterWide?.poster ?? show.media.hero?.poster ?? show.media.card?.poster;
   return {
     title,
     description: show.logline,

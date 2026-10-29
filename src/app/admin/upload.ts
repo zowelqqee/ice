@@ -1,7 +1,7 @@
 // Browser side of an upload: send the file (to this server, or straight to Vercel Blob), then ask
 // the server to process it. Used by the admin's media fields only.
 
-export type UploadSlot = "card" | "hero" | "extra" | "og" | "audio";
+export type UploadSlot = "card" | "hero" | "extra" | "posterWide" | "posterSquare" | "posterTall" | "og" | "audio";
 type Kind = "image" | "video" | "audio";
 interface Config {
   mode: "local" | "blob" | "none";
@@ -64,6 +64,7 @@ export async function uploadFor<T>(
   if (!kind) throw new Error("This file type is not supported.");
   if (slot === "audio" ? kind !== "audio" : kind === "audio") throw new Error(slot === "audio" ? "Choose an audio file." : "Choose an image or a video.");
   if (slot === "og" && kind !== "image") throw new Error("Use an image for the share picture.");
+  if (slot.startsWith("poster") && kind !== "image") throw new Error("Use an image for the poster.");
 
   const cfg = await json<Config>(await fetch("/admin/api/upload", { cache: "no-store" }));
   if (cfg.mode === "none")

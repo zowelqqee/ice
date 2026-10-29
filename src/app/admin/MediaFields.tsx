@@ -8,12 +8,23 @@ import { btnDanger, btnGhost, errorText, hint } from "./styles";
 // Upload fields for the admin forms. Each keeps its value in a hidden input, so the file is only
 // attached to the show / track / settings when the form is saved.
 
-type Slot = "card" | "hero" | "extra";
-const SLOTS: { slot: Slot; label: string; size: string; aspect: string }[] = [
+type Slot = "card" | "hero" | "extra" | "posterWide" | "posterSquare" | "posterTall";
+const SLOTS: { slot: Slot; label: string; size: string; aspect: string; poster?: true }[] = [
   { slot: "card", label: "Card in the shows list", size: "portrait, cropped to 720 × 900", aspect: "aspect-[4/5]" },
   { slot: "hero", label: "Header of the show page", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video" },
   { slot: "extra", label: "Extra loop on the show page", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video" },
+  { slot: "posterWide", label: "16:9: showcase tiles (computers, tablets)", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video", poster: true },
+  { slot: "posterSquare", label: "1:1: showcase list on phones", size: "square, cropped to 720 × 720", aspect: "aspect-square", poster: true },
+  { slot: "posterTall", label: "9:16: beside the story on the show page", size: "portrait, cropped to 720 × 1280", aspect: "aspect-[9/16]", poster: true },
 ];
+
+/** What the site shows when a slot is empty. */
+function emptyNote(slot: Slot) {
+  if (slot === "card") return "No picture: the site draws a light-and-ice card in the show's colour";
+  if (slot === "posterTall") return "No poster on the show page";
+  if (slot === "posterWide" || slot === "posterSquare") return "Not set: the showcase uses the other cut, or the card";
+  return "No picture";
+}
 
 function Preview({ media, className }: { media: MediaRef; className: string }) {
   if (media.video) {
@@ -79,13 +90,14 @@ export function Consent({ checked, onChange, text }: { checked: boolean; onChang
 }
 
 const VISUAL_CONSENT =
-  "I have checked what I upload: no recognisable faces, no logos, watermarks or captions, nothing from the previous brand or its market.";
+  "I have checked what I upload: no recognisable faces of real people, no watermarks, nothing from the previous brand or its market; lettering and logos only on posters, in English.";
 
 function SlotEditor({
   slot,
   label,
   size,
   aspect,
+  poster,
   value,
   owner,
   allowed,
@@ -95,19 +107,19 @@ function SlotEditor({
   return (
     <div className="rounded-md border border-[#1c2738] p-3">
       <p className="text-sm text-[#c9d6e3]">{label}</p>
-      <p className={`${hint} mb-2`}>Image or video, {size}. Video: first 15 seconds, without sound.</p>
+      <p className={`${hint} mb-2`}>{poster ? `Image, ${size}.` : `Image or video, ${size}. Video: first 15 seconds, without sound.`}</p>
       <div className={`relative mb-3 w-full max-w-[240px] overflow-hidden rounded bg-[#0c121b] ${aspect}`}>
         {value ? (
           <Preview media={value} className="absolute inset-0 h-full w-full object-cover" />
         ) : (
           <span className="absolute inset-0 flex items-center justify-center p-2 text-center text-xs text-[#5d7088]">
-            {slot === "card" ? "No picture: the site draws a light-and-ice card in the show's colour" : "No picture"}
+            {emptyNote(slot)}
           </span>
         )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <PickButton
-          accept="image/*,video/*"
+          accept={poster ? "image/*" : "image/*,video/*"}
           disabled={!allowed || !!busy}
           onFile={async (f) => {
             const r = await run(f, slot, owner);
@@ -128,32 +140,36 @@ function SlotEditor({
   );
 }
 
-/** The three pictures of a show, saved with the show as one JSON field ("media"). */
+/** The pictures of a show (card, header, extra loop, and the poster in three cuts), saved with
+ *  the show as one JSON field ("media"). */
 export function ShowMediaField({ initial, owner, error }: { initial: Partial<Record<Slot, MediaRef>>; owner: string; error?: string }) {
   const [media, setMedia] = useState(initial);
   const [allowed, setAllowed] = useState(false);
+  const editors = (poster: boolean) =>
+    SLOTS.filter((s) => !!s.poster === poster).map((s) => (
+      <SlotEditor
+        key={s.slot}
+        {...s}
+        value={media[s.slot]}
+        owner={owner}
+        allowed={allowed}
+        onChange={(v) => setMedia((m) => {
+          const next = { ...m };
+          if (v) next[s.slot] = v;
+          else delete next[s.slot];
+          return next;
+        })}
+      />
+    ));
   return (
     <fieldset className="space-y-3">
       <legend className="mb-2 text-sm text-[#c9d6e3]">Pictures and video</legend>
       <Consent checked={allowed} onChange={setAllowed} text={VISUAL_CONSENT} />
       <input type="hidden" name="media" value={JSON.stringify(media)} />
-      <div className="grid gap-3 md:grid-cols-3">
-        {SLOTS.map((s) => (
-          <SlotEditor
-            key={s.slot}
-            {...s}
-            value={media[s.slot]}
-            owner={owner}
-            allowed={allowed}
-            onChange={(v) => setMedia((m) => {
-              const next = { ...m };
-              if (v) next[s.slot] = v;
-              else delete next[s.slot];
-              return next;
-            })}
-          />
-        ))}
-      </div>
+      <div className="grid gap-3 md:grid-cols-3">{editors(false)}</div>
+      <p className="pt-3 text-sm text-[#c9d6e3]">Poster</p>
+      <p className={hint}>The same poster in three cuts. Each is cropped to fill, so upload each cut at its own shape.</p>
+      <div className="grid gap-3 md:grid-cols-3">{editors(true)}</div>
       <p className={hint}>New files replace the old ones when you save; removed files are deleted then.</p>
       {error && <p className={errorText}>{error}</p>}
     </fieldset>

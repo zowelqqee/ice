@@ -8,13 +8,6 @@ export interface MediaRef {
   poster: string; // path without extension: .avif + .webp + .jpg
   formats?: ("webm" | "mp4")[]; // video files that exist (default: both)
 }
-/** The client's key art in three cuts (paths without extension: .avif + .webp + .jpg). It comes
- *  with the site's files (src/data/shows.json, by slug), not from the admin. */
-export interface Posters {
-  wide: string; // 16:9, showcase tiles
-  square: string; // 1:1, showcase rows on phones
-  tall: string; // 9:16, the show page
-}
 export interface Show {
   slug: string;
   status: ShowStatus;
@@ -25,8 +18,16 @@ export interface Show {
   highlights: string[];
   facts: { duration?: string; age?: string };
   accent: string;
-  media: { card?: MediaRef; hero?: MediaRef; extra?: MediaRef };
-  posters?: Posters;
+  media: {
+    card?: MediaRef;
+    hero?: MediaRef;
+    extra?: MediaRef;
+    // the show's poster in three cuts (images only): 16:9 showcase tiles, 1:1 showcase rows on
+    // phones, 9:16 beside the story on the show page
+    posterWide?: MediaRef;
+    posterSquare?: MediaRef;
+    posterTall?: MediaRef;
+  };
   track: string | null;
   copyStatus?: string; // in shows.json only (draft copy awaiting approval)
 }

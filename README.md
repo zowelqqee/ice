@@ -54,7 +54,7 @@ The GitHub repository is connected to a Vercel project, which picks up Next.js o
 | Section | What it edits |
 |---|---|
 | **Tour dates** | Dates: show, date and time, city, country, venue, ticket link, status, published. Add, edit, duplicate, delete. |
-| **Shows** | The repertoire: title, subtitle, pitch, story, highlights, duration, age, status, colour, music, shown/hidden, order. Pictures and video for the card, the show page header and the extra loop. Add and delete shows; each new show gets its page `/shows/<address>` and a sitemap entry. |
+| **Shows** | The repertoire: title, subtitle, pitch, story, highlights, duration, age, status, colour, music, shown/hidden, order. Pictures and video for the card, the show page header and the extra loop, and the poster in three cuts (16:9 showcase tiles, 1:1 showcase list on phones, 9:16 on the show page). Add and delete shows; each new show gets its page `/shows/<address>` and a sitemap entry. |
 | **Music** | The player in “Our music”: upload a recording, title, note, show, order, shown/hidden. |
 | **Texts** | Every line of the interface (menu, first screen, section titles, buttons, footer, page title and description for search engines). |
 | **Settings** | Booking and press emails, YouTube and Instagram links, the share picture for link previews. |
