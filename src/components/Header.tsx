@@ -43,8 +43,8 @@ export function Header({ t, tSound }: { t: Dictionary["nav"]; tSound: Dictionary
   const lenis = useLenis();
   const links: [string, string][] = [
     ["/#shows", t.shows],
-    ["/#tour", t.tour],
     ["/#music", t.music],
+    ["/#tour", t.tour],
   ];
 
   useEffect(() => setOpen(false), [pathname]);

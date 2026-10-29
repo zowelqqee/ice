@@ -10,11 +10,14 @@ export function ShowVisual({
   variant = "card",
   className = "",
   priority = false,
+  motifClassName = "",
 }: {
   show: Show;
   variant?: "card" | "hero";
   className?: string;
   priority?: boolean;
+  /** placement of an unreleased show's word motif (e.g. lifted clear of a title laid over it) */
+  motifClassName?: string;
 }) {
   const media = variant === "hero" ? show.media.hero ?? show.media.card : show.media.card;
   if (media)
@@ -38,15 +41,15 @@ export function ShowVisual({
         <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-ink/40 via-transparent to-ink/70" />
       </div>
     );
-  return <Unreleased show={show} className={className} />;
+  return <Unreleased show={show} className={className} motifClassName={motifClassName} />;
 }
 
-function Unreleased({ show, className }: { show: Show; className: string }) {
+function Unreleased({ show, className, motifClassName }: { show: Show; className: string; motifClassName: string }) {
   const a = show.accent;
   const motif =
     show.slug === "the-little-prince" ? "star" : show.slug === "through-the-looking-glass" ? "mirror" : "rings";
   return (
-    <div className={`relative overflow-hidden bg-abyss ${className}`} aria-hidden>
+    <div className={`relative overflow-hidden bg-abyss [container-type:inline-size] ${className}`} aria-hidden>
       {/* frost grain */}
       <svg className="absolute inset-0 h-full w-full opacity-[0.22] mix-blend-screen" preserveAspectRatio="none">
         <filter id={`frost-${show.slug}`}>
@@ -72,13 +75,13 @@ function Unreleased({ show, className }: { show: Show; className: string }) {
         {motif === "mirror" && <line x1="200" y1="40" x2="200" y2="470" stroke={a} strokeOpacity="0.6" strokeWidth="0.6" />}
       </svg>
       {motif === "mirror" && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="display text-[9vw] text-ice/10 [transform:scaleX(-1)]">Alice</span>
+        <div className={`absolute inset-0 flex items-center justify-center ${motifClassName}`}>
+          <span className="display text-[min(9vw,22cqw)] text-ice/10 [transform:scaleX(-1)]">Alice</span>
         </div>
       )}
       {motif === "rings" && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="display text-[14vw] text-transparent [-webkit-text-stroke:1px_rgba(234,246,255,0.18)]">
+        <div className={`absolute inset-0 flex items-center justify-center ${motifClassName}`}>
+          <span className="display text-[min(14vw,36cqw)] text-transparent [-webkit-text-stroke:1px_rgba(234,246,255,0.18)]">
             {show.subtitle.split(" ").pop()}
           </span>
         </div>

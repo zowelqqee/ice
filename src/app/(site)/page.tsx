@@ -1,7 +1,7 @@
 import { HomeIntro } from "@/components/HomeIntro";
 import { ShowsSection } from "@/components/shows/ShowsSection";
-import { TourSection } from "@/components/tour/TourSection";
 import { MusicSection } from "@/components/music/MusicSection";
+import { TourSection } from "@/components/tour/TourSection";
 import { getDict, getShows, getSiteSettings, getTracks } from "@/lib/content";
 import { site } from "@/lib/site";
 
@@ -18,16 +18,17 @@ export default async function Page() {
     logo: `${site.url}/brand/logo-white.png`,
     sameAs: [settings.social.youtube, settings.social.instagram].filter(Boolean),
   };
+  // four screens: the hero, the showcase of every show, the ice orchestra, the tour
   return (
     <main>
       <HomeIntro t={t} />
       <ShowsSection t={t.shows} shows={shows} />
-      <TourSection t={t.tour} />
       <MusicSection
         t={t.music}
         tracks={tracks}
         shows={shows.map(({ slug, title, subtitle, accent }) => ({ slug, title, subtitle, accent }))}
       />
+      <TourSection t={t.tour} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(org) }} />
     </main>
   );
