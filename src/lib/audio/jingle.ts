@@ -8,11 +8,11 @@ import { orchestra } from "./orchestra";
 import { player } from "./music";
 
 const SRC = "/media/brand/jingle";
-/** Moments in the theme, in seconds: the opening sweep, then the bright chimes. */
-export const JINGLE_ACCENTS = [1.75, 2.7, 5.0, 5.8, 8.0, 8.7, 13.6];
-/** The opening sweep: the Enter screen opens on it. */
-export const JINGLE_SWEEP = 1.75;
-export const JINGLE_LENGTH = 17.6;
+/** Moments in the theme (v6), in seconds: the opening hit, then the strongest beats and crashes. */
+export const JINGLE_ACCENTS = [0.35, 3.7, 4.4, 5.6, 9.1, 13.5, 14.7, 16.4];
+/** The opening hit: the Enter screen opens on it. */
+export const JINGLE_SWEEP = 0.35;
+export const JINGLE_LENGTH = 20.2;
 
 type Listener = () => void;
 

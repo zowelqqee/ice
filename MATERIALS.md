@@ -61,7 +61,7 @@ question (see README).
 
 | Asset | Source shot | Why it is safe |
 |---|---|---|
-| Jingle | client's `MOI-Jingle_m.mp3` (17.5 s, working version) → `public/media/brand/jingle.{m4a,webm}` via `scripts/media/jingle.sh` | loudness-normalised; an inaudible 19.6 kHz tone in the source (1.6–2.2 s) is cut with everything above 16 kHz; metadata stripped |
+| Jingle | client's `MOI-Jingle_v6_m.mp3` (20.2 s, the final version of 2026-11-04; replaces the working `MOI-Jingle_m.mp3`) → `public/media/brand/jingle.{m4a,webm}` via `scripts/media/jingle.sh` | loudness-normalised; everything above 16 kHz cut (the working version carried an inaudible 19.6 kHz tone); metadata stripped |
 | Aladdin card / page | twirl 53.72 s (cropped below the shoulders) / gold wide arena 56.38 s | no faces |
 | Dracula card / page / extra | cape and legs 13.76 s (cropped low) / lone skater on the gothic street 19.36 s / red aerial silk 15.14 s | no faces, no subtitles |
 | Anastasia card / page | ballroom wide 0.70 s | figures tiny |

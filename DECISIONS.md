@@ -48,9 +48,12 @@ Until October 2026 the supplied posters (AI-generated illustrations with gold, g
 faces) were kept off the site, as they conflicted with the brief's rule of no AI faces; the show
 cards were footage loops with typographic titles. On 2026-10-29 the client sent the full poster set
 and asked for it on the site. The showcase now shows each show's poster (16:9 tiles, 1:1 rows on
-phones) and the show page shows the 9:16 cut beside the story (`scripts/media/posters.sh`, metadata
-stripped). The show-page heroes stay footage. Shows without a poster keep the light-and-ice
-composition.
+phones; `scripts/media/posters.sh`, metadata stripped). On 2026-11-04 the client asked for the poster
+as the show page header instead of the short footage loop, and none beside the story: the header is
+the 16:9 cut on landscape screens and the 9:16 cut on phones and portrait tablets, starting under the
+menu from tablets up (the poster's own logo sits at the top centre); the big typeset title stays for
+screen readers and search only, since the poster carries it. Shows without a poster keep the footage
+or the light-and-ice composition and the typeset title.
 
 ## D4. Typography: Instrument Serif (display) + Geist (text) + Geist Mono (data)
 Instrument Serif's narrow, high-contrast italic reads cinematic and editorial (A24 territory),
@@ -146,16 +149,16 @@ Each ice instrument plays its own part of an original 16-bar theme in D minor, s
   taken out after the next review: visitors would not recognise it as a pointer.
 
 ## D14. The jingle: the brand theme for logo moments
-The client's jingle (17.6 s, a working version) is the sound of the brand, not background music:
+The client's jingle (v6 of 2026-11-04, 20.2 s) is the sound of the brand, not background music:
 - **Enter screen = the brand intro.** It plays by itself once loaded (with the jingle where the
   browser allows sound, see D7), and
-  the screen is timed to it: a line of light cuts across, on the opening sweep (1.75 s) the halves
+  the screen is timed to it: a line of light cuts across, on the opening hit (0.35 s) the halves
   part like a door into the rink with a burst of light and frost, and the treble clef flies down
   into the skater and dissolves into her; the hero is open by the musical peak (5–6 s).
 - **The skater spins to it**: a push on the sweep and on each bright chime; her rim light follows
   the sound through the shared analyser.
 - **The treble clef plays it** again from the footer ("Play our theme").
-- **Not a background loop**: 17 s on repeat tires fast, would clash with the show tracks and the
+- **Not a background loop**: 20 s on repeat tires fast, would clash with the show tracks and the
   orchestra, and browsers allow no sound before a click anyway. The jingle stops when a show track
   or the orchestra starts, and they stop it.
 

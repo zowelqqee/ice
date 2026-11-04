@@ -11,11 +11,11 @@ import { btnDanger, btnGhost, errorText, hint } from "./styles";
 type Slot = "card" | "hero" | "extra" | "posterWide" | "posterSquare" | "posterTall";
 const SLOTS: { slot: Slot; label: string; size: string; aspect: string; poster?: true }[] = [
   { slot: "card", label: "Card in the shows list", size: "portrait, cropped to 720 × 900", aspect: "aspect-[4/5]" },
-  { slot: "hero", label: "Header of the show page", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video" },
+  { slot: "hero", label: "Header of the show page (when there is no poster)", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video" },
   { slot: "extra", label: "Extra loop on the show page", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video" },
-  { slot: "posterWide", label: "16:9: showcase tiles (computers, tablets)", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video", poster: true },
+  { slot: "posterWide", label: "16:9: showcase tiles and the show page header (computers, tablets)", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video", poster: true },
   { slot: "posterSquare", label: "1:1: showcase list on phones", size: "square, cropped to 720 × 720", aspect: "aspect-square", poster: true },
-  { slot: "posterTall", label: "9:16: beside the story on the show page", size: "portrait, cropped to 720 × 1280", aspect: "aspect-[9/16]", poster: true },
+  { slot: "posterTall", label: "9:16: the show page header on phones", size: "portrait, cropped to 720 × 1280", aspect: "aspect-[9/16]", poster: true },
 ];
 
 /** What the site shows when a slot is empty. */

@@ -5,7 +5,7 @@ import { gsap } from "gsap";
 import type { Show, TourDate, Track } from "@/lib/data";
 import { ticketState } from "@/lib/ticket";
 import { ShowVisual } from "./ShowVisual";
-import { LoopVideo, Still } from "../media/Media";
+import { LoopVideo } from "../media/Media";
 import { BladeLink } from "../shell/Transition";
 import { IceButton } from "../ui/IceButton";
 import { player } from "@/lib/audio/music";
@@ -43,6 +43,33 @@ function ListenButton({ track, accent, label }: { track: Track; accent: string; 
   );
 }
 
+/** The show's poster as the page header, filling the screen: the 16:9 cut on landscape screens, the
+ *  9:16 cut on phones and portrait tablets (held by its top, where the title is). A missing cut is
+ *  stood in for by another one. */
+function PosterHero({ media }: { media: Show["media"] }) {
+  const wide = (media.posterWide ?? media.posterSquare ?? media.posterTall)!.poster;
+  const tall = (media.posterTall ?? media.posterSquare ?? media.posterWide)!.poster;
+  const landscape = "(min-aspect-ratio: 1/1)";
+  return (
+    <picture>
+      <source media={landscape} srcSet={`${wide}.avif`} type="image/avif" />
+      <source media={landscape} srcSet={`${wide}.webp`} type="image/webp" />
+      <source media={landscape} srcSet={`${wide}.jpg`} />
+      <source srcSet={`${tall}.avif`} type="image/avif" />
+      <source srcSet={`${tall}.webp`} type="image/webp" />
+      <img
+        src={`${tall}.jpg`}
+        alt=""
+        width={1280}
+        height={720}
+        fetchPriority="high"
+        decoding="async"
+        className="absolute inset-0 h-full w-full object-cover object-top [@media(min-aspect-ratio:1/1)]:object-center"
+      />
+    </picture>
+  );
+}
+
 export function ShowPage({
   show,
   next,
@@ -60,6 +87,7 @@ export function ShowPage({
 }) {
   const root = useRef<HTMLElement>(null);
   const released = show.status === "touring";
+  const poster = show.media.posterWide ?? show.media.posterTall ?? show.media.posterSquare;
 
   useEffect(() => {
     const el = root.current;
@@ -83,10 +111,18 @@ export function ShowPage({
     <main ref={root} style={{ "--a": show.accent } as React.CSSProperties}>
       {/* hero */}
       <section data-hero className="relative h-svh min-h-[560px] overflow-hidden">
-        <div data-hero-media className="absolute inset-0">
-          <ShowVisual show={show} variant="hero" priority className="h-full w-full" />
+        {/* a poster starts under the menu from tablets up (its own logo sits at the top centre, where the menu is) */}
+        <div
+          data-hero-media
+          className={poster ? "absolute inset-x-0 bottom-0 top-0 md:top-24 md:[mask-image:linear-gradient(to_bottom,transparent,black_5%)]" : "absolute inset-0"}
+        >
+          {poster ? <PosterHero media={show.media} /> : <ShowVisual show={show} variant="hero" priority className="h-full w-full" />}
         </div>
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-ink via-ink/20 to-ink/50" />
+        {/* over a poster, only a fade at the foot (for the back link) and a light one under the menu */}
+        <div
+          aria-hidden
+          className={`absolute inset-0 bg-gradient-to-t ${poster ? "from-ink via-transparent via-30% to-ink/40" : "from-ink via-ink/20 to-ink/50"}`}
+        />
         <div className="absolute inset-x-[var(--gutter)] bottom-[9svh]">
           <BladeLink href="/#shows" className="eyebrow mb-8 inline-flex items-center gap-3 hover:text-ice">
             <span aria-hidden>←</span> {t.back}
@@ -95,7 +131,8 @@ export function ShowPage({
             <span aria-hidden className="h-px w-10" style={{ background: show.accent }} />
             {show.status === "touring" ? t.touring : show.status === "coming" ? t.coming : t.tba}
           </p>
-          <h1 className="overflow-hidden">
+          {/* a poster carries the title in its lettering: then the heading is there for screen readers and search only */}
+          <h1 className={poster ? "sr-only" : "overflow-hidden"}>
             <span data-rise className="display block text-[22vw] md:text-[13vw]">
               {show.title}
             </span>
@@ -128,11 +165,6 @@ export function ShowPage({
           )}
         </div>
         <aside className="md:col-span-4 md:col-start-9">
-          {show.media.posterTall && (
-            <div data-reveal className="mb-10 max-w-sm md:max-w-none">
-              <Still src={show.media.posterTall.poster} alt={`${show.title} ${show.subtitle}: poster`} width={720} height={1280} className="h-auto w-full" />
-            </div>
-          )}
           {(show.facts.duration || show.facts.age) && (
             <dl data-reveal className="grid grid-cols-2 border-t border-deep">
               {show.facts.duration && (

@@ -163,6 +163,8 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
     // timed to the jingle; the same shape, quicker, without it
     const k = music ? 1 : 0.5;
     const sweep = music ? JINGLE_SWEEP : 0.6;
+    // the line of light reaches the far side just as the door opens (the jingle's opening hit comes early)
+    const cutAt = Math.min(0.25 * k, sweep / 4);
     const W = innerWidth, H = innerHeight;
     const frost = frostBurst(el.querySelector("canvas[data-frost]") as HTMLCanvasElement);
 
@@ -194,7 +196,7 @@ export function Gate({ t, ready }: { t: Dictionary["gate"]; ready: boolean }) {
       .to(el.querySelectorAll("[data-content] [data-letters], [data-content] [data-swoosh]"), { opacity: 0, duration: 1.0 * k, ease: "power1.in" }, 0.3 * k)
       .to(fly, { filter: "drop-shadow(0 0 18px rgba(92,242,255,0.95)) brightness(1.5)", duration: 1.2 * k }, 0.1)
       // a line of light cuts the screen
-      .to(el.querySelector("[data-cut]"), { attr: { x2: 100, y2: 38 }, duration: Math.max(0.4, sweep - 0.35), ease: "power2.inOut" }, 0.25 * k)
+      .to(el.querySelector("[data-cut]"), { attr: { x2: 100, y2: 38 }, duration: Math.max(0.25, sweep - cutAt - 0.05), ease: "power2.inOut" }, cutAt)
       // on the sweep: the door opens, light floods out, frost bursts along the cut
       .to(el.querySelector("[data-a]"), { xPercent: -8, yPercent: -112, duration: 1.8 * k, ease: "expo.inOut" }, sweep)
       .to(el.querySelector("[data-b]"), { xPercent: 8, yPercent: 112, duration: 1.8 * k, ease: "expo.inOut" }, sweep)

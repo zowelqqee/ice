@@ -54,7 +54,7 @@ The GitHub repository is connected to a Vercel project, which picks up Next.js o
 | Section | What it edits |
 |---|---|
 | **Tour dates** | Dates: show, date and time, city, country, venue, ticket link, status, published. Add, edit, duplicate, delete. |
-| **Shows** | The repertoire: title, subtitle, pitch, story, highlights, duration, age, status, colour, music, shown/hidden, order. Pictures and video for the card, the show page header and the extra loop, and the poster in three cuts (16:9 showcase tiles, 1:1 showcase list on phones, 9:16 on the show page). Add and delete shows; each new show gets its page `/shows/<address>` and a sitemap entry. |
+| **Shows** | The repertoire: title, subtitle, pitch, story, highlights, duration, age, status, colour, music, shown/hidden, order. Pictures and video for the card, the show page header (when there is no poster) and the extra loop, and the poster in three cuts (16:9 showcase tiles and the show page header on landscape screens, 1:1 showcase list on phones, 9:16 show page header on phones). Add and delete shows; each new show gets its page `/shows/<address>` and a sitemap entry. |
 | **Music** | The player in “Our music”: upload a recording, title, note, show, order, shown/hidden. |
 | **Texts** | Every line of the interface (menu, first screen, section titles, buttons, footer, page title and description for search engines). |
 | **Settings** | Booking and press emails, YouTube and Instagram links, the share picture for link previews. |
@@ -221,8 +221,8 @@ position, is listed but not drawn. The land layer is pre-rendered before every `
 ### The jingle (brand theme)
 
 Plays on the Enter screen (the intro is timed to it) and from the treble clef in the footer. To
-replace it with the final version, run `scripts/media/jingle.sh <file>`; if its opening sweep is no
-longer at 1.75 s, update `JINGLE_SWEEP` and the chime times in `src/lib/audio/jingle.ts`.
+replace it, run `scripts/media/jingle.sh <file>`; if its opening hit is no longer at 0.35 s, update
+`JINGLE_SWEEP` and the accent times in `src/lib/audio/jingle.ts`.
 
 ### Add a music track (in files)
 

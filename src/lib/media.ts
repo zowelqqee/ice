@@ -24,9 +24,9 @@ export const SLOTS = {
   hero: { w: 1280, h: 720, label: "Show page header (landscape)" },
   extra: { w: 1280, h: 720, label: "Extra loop on the show page (landscape)" },
   og: { w: 1200, h: 630, label: "Share image (links in messengers and social networks)" },
-  posterWide: { w: 1280, h: 720, label: "Poster, 16:9 (showcase tiles)" },
+  posterWide: { w: 1280, h: 720, label: "Poster, 16:9 (showcase tiles, show page header)" },
   posterSquare: { w: 720, h: 720, label: "Poster, 1:1 (showcase on phones)" },
-  posterTall: { w: 720, h: 1280, label: "Poster, 9:16 (show page)" },
+  posterTall: { w: 720, h: 1280, label: "Poster, 9:16 (show page header on phones)" },
 } as const;
 export type Slot = keyof typeof SLOTS;
 export const isSlot = (s: unknown): s is Slot => typeof s === "string" && s in SLOTS;

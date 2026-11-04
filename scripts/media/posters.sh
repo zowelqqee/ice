@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Show posters (the client's key art, used as-is since October 2026, see DECISIONS.md D3): each
 # show in three cuts, scaled and stripped of metadata, as AVIF + WebP + JPEG.
-#   wide   16:9  960x540   showcase tiles on tablets and wider screens
+#   wide   16:9  1280x720  showcase tiles on tablets and wider screens; the show page header on landscape screens
 #   square 1:1   480x480   showcase rows on phones
-#   tall   9:16  720x1280  the poster on the show page
+#   tall   9:16  720x1280  the show page header on phones and portrait tablets
 # Source: the PNGs in "<materials-root>/POSTERS 2026-10-29" (root defaults to ~/ice/materials).
 #   usage: scripts/media/posters.sh [materials-root]
 set -euo pipefail
@@ -28,7 +28,7 @@ cut() {
 
 # show <slug> <16:9 file> <1:1 file> <9:16 file>
 show() {
-  cut "$2" 960x540 "$1/poster-wide"
+  cut "$2" 1280x720 "$1/poster-wide"
   cut "$3" 480x480 "$1/poster-square"
   cut "$4" 720x1280 "$1/poster-tall"
 }
