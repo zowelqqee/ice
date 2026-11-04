@@ -133,11 +133,11 @@ export function ShowPage({
           </p>
           {/* a poster carries the title in its lettering: then the heading is there for screen readers and search only */}
           <h1 className={poster ? "sr-only" : "overflow-hidden"}>
-            <span data-rise className="display block text-[22vw] md:text-[13vw]">
+            <span data-rise className="display block text-[12vw] md:text-[5.5vw]">
               {show.title}
             </span>
             <span className="block overflow-hidden">
-              <span data-rise className="display block text-[9vw] text-frost md:text-[4.4vw]">
+              <span data-rise className="display block text-[7vw] text-frost md:text-[2.8vw]">
                 {show.subtitle}
               </span>
             </span>
@@ -202,7 +202,8 @@ export function ShowPage({
 
       {show.media.extra && (
         <section className="px-[var(--gutter)]">
-          <div data-reveal className="relative aspect-[16/9] w-full overflow-hidden md:aspect-[21/9]">
+          {/* the show on the ice: a reel of the production (silent, plays while in view) */}
+          <div data-reveal className="relative aspect-video w-full overflow-hidden">
             <LoopVideo media={show.media.extra} className="absolute inset-0 h-full w-full object-cover" />
           </div>
         </section>
@@ -211,7 +212,7 @@ export function ShowPage({
       {/* dates */}
       {released && (
         <section className="px-[var(--gutter)] py-24 md:py-36">
-          <h2 data-reveal className="display mb-10 text-[14vw] md:text-[7vw]">
+          <h2 data-reveal className="display mb-10 text-[10vw] md:text-[4.6vw]">
             {t.dates}
           </h2>
           {dates.length ? (
@@ -255,7 +256,7 @@ export function ShowPage({
         className="group relative block overflow-hidden border-t border-deep px-[var(--gutter)] py-24 md:py-32"
       >
         <span className="eyebrow">{t.next}</span>
-        <span className="display mt-4 block text-[16vw] transition-colors duration-500 group-hover:text-[var(--n)] md:text-[10vw]" style={{ "--n": next.accent } as React.CSSProperties}>
+        <span className="display mt-4 block text-[10vw] transition-colors duration-500 group-hover:text-[var(--n)] md:text-[4.6vw]" style={{ "--n": next.accent } as React.CSSProperties}>
           {next.title} <em className="text-frost">{next.subtitle}</em>
         </span>
         <span aria-hidden className="absolute bottom-0 left-0 h-px w-full origin-left scale-x-0 transition-transform duration-700 ease-[var(--ease-blade)] group-hover:scale-x-100" style={{ background: next.accent }} />

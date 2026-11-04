@@ -13,7 +13,7 @@ import { deleteFiles, fetchIncoming, putFile } from "@/lib/storage";
 // for the original footage:
 //   image  → .avif / .webp / .jpg at the slot's size (cropped to fill, around the most
 //            interesting part), metadata dropped
-//   video  → silent H.264 .mp4 loop (first 15 s) at the slot's size + a still for the poster
+//   video  → silent H.264 .mp4 loop (first 15 s; 30 s for the show page video) at the slot's size + a still for the poster
 //   audio  → loudness-normalised .m4a (AAC) and .webm (Opus), metadata dropped
 // Nothing of the original file is kept.
 
@@ -22,7 +22,7 @@ const run = promisify(execFile);
 export const SLOTS = {
   card: { w: 720, h: 900, label: "Card (portrait, shows list)" },
   hero: { w: 1280, h: 720, label: "Show page header (landscape)" },
-  extra: { w: 1280, h: 720, label: "Extra loop on the show page (landscape)" },
+  extra: { w: 1280, h: 720, label: "Video on the show page (landscape)" },
   og: { w: 1200, h: 630, label: "Share image (links in messengers and social networks)" },
   posterWide: { w: 1280, h: 720, label: "Poster, 16:9 (showcase tiles, show page header)" },
   posterSquare: { w: 720, h: 720, label: "Poster, 1:1 (showcase on phones)" },
@@ -39,6 +39,8 @@ export const LIMITS = {
   audio: 80 * 1024 * 1024,
 };
 export const MAX_VIDEO_SECONDS = 15;
+/** The show page video may run longer than the short loops of the other slots. */
+export const videoSeconds = (slot: Slot) => (slot === "extra" ? 30 : MAX_VIDEO_SECONDS);
 export type MediaKind = keyof typeof LIMITS;
 export const kindOf = (contentType: string): MediaKind | null =>
   contentType.startsWith("image/") ? "image" : contentType.startsWith("video/") ? "video" : contentType.startsWith("audio/") ? "audio" : null;
@@ -108,7 +110,7 @@ export async function processVisual(incoming: string, kind: MediaKind, slot: Slo
     if (kind !== "video" || imageOnly(slot)) throw new Error("Use an image here.");
     const out = join(work, "out.mp4");
     await ffmpeg([
-      "-i", input, "-t", String(MAX_VIDEO_SECONDS), "-an", "-sn", "-dn",
+      "-i", input, "-t", String(videoSeconds(slot)), "-an", "-sn", "-dn",
       "-vf", `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},fps=30,format=yuv420p`,
       "-c:v", "libx264", "-preset", "veryfast", "-crf", "24", "-profile:v", "high",
       "-map_metadata", "-1", "-map_chapters", "-1", "-fflags", "+bitexact", "-flags:v", "+bitexact",

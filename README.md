@@ -54,7 +54,7 @@ The GitHub repository is connected to a Vercel project, which picks up Next.js o
 | Section | What it edits |
 |---|---|
 | **Tour dates** | Dates: show, date and time, city, country, venue, ticket link, status, published. Add, edit, duplicate, delete. |
-| **Shows** | The repertoire: title, subtitle, pitch, story, highlights, duration, age, status, colour, music, shown/hidden, order. Pictures and video for the card, the show page header (when there is no poster) and the extra loop, and the poster in three cuts (16:9 showcase tiles and the show page header on landscape screens, 1:1 showcase list on phones, 9:16 show page header on phones). Add and delete shows; each new show gets its page `/shows/<address>` and a sitemap entry. |
+| **Shows** | The repertoire: title, subtitle, pitch, story, highlights, duration, age, status, colour, music, shown/hidden, order. Pictures and video for the card, the show page header (when there is no poster) and the show page video (up to 30 s, under the story), and the poster in three cuts (16:9 showcase tiles and the show page header on landscape screens, 1:1 showcase list on phones, 9:16 show page header on phones). Add and delete shows; each new show gets its page `/shows/<address>` and a sitemap entry. |
 | **Music** | The player in “Our music”: upload a recording, title, note, show, order, shown/hidden. |
 | **Texts** | Every line of the interface (menu, first screen, section titles, buttons, footer, page title and description for search engines). |
 | **Settings** | Booking and press emails, YouTube and Instagram links, the share picture for link previews. |
@@ -268,7 +268,7 @@ src/components/ui/          IceButton (cracks on hover, shatters on press)
 src/lib/audio/              engine.ts (single Web Audio graph), music.ts (show-track player), orchestra.ts (sampler + score)
 src/lib/                    spin state, quality tiers, data accessors, map projection
 src/data/                   shows.json, tour.json, music.json
-scripts/media/              hero-poster.sh, shows.sh, music.sh: source → web assets, metadata stripped
+scripts/media/              hero-poster.sh, shows.sh, reels.sh, posters.sh, jingle.sh, music.sh: source → web assets, metadata stripped
 scripts/build-map.mjs       pre-renders the map land layer
 scripts/audit.mjs           brand-separation audit → AUDIT.md
 ```

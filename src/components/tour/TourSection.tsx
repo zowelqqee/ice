@@ -40,7 +40,7 @@ export async function TourSection({ t }: { t: Dictionary["tour"] }) {
   return (
     <section id="tour" aria-labelledby="tour-title" className="relative px-[var(--gutter)] py-28 md:py-40">
       <p className="eyebrow mb-6">{t.eyebrow}</p>
-      <h2 id="tour-title" className="display mb-16 text-[16vw] md:mb-24 md:text-[8.8vw]">
+      <h2 id="tour-title" className="display mb-12 text-[10vw] md:text-[4.6vw] md:mb-16">
         {t.title} <em className="text-accent">{t.titleItalic}</em>
       </h2>
       <TourView t={t} dates={dates} shows={info} map={{ stops, route }} width={MAP_W} height={MAP_H} />

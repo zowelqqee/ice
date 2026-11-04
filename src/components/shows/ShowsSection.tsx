@@ -99,7 +99,7 @@ export function ShowsSection({ t, shows }: { t: Dictionary["shows"]; shows: Show
       <header className="relative mb-7 flex flex-col gap-5 md:mb-10 lg:mb-6 lg:flex-row lg:items-end lg:justify-between lg:gap-16">
         <div>
           <p className="eyebrow mb-4">{t.eyebrow}</p>
-          <h2 id="shows-title" className="display text-[11vw] md:text-[7vw] lg:text-[4.6vw]">
+          <h2 id="shows-title" className="display text-[10vw] md:text-[4.6vw]">
             {t.title} <em className="text-accent">{t.titleItalic}</em>
           </h2>
         </div>

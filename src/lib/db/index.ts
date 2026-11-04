@@ -124,6 +124,7 @@ async function open(): Promise<DbHandle> {
   }
   await seed(h);
   await addPosters(h);
+  await addReels(h);
   return h;
 }
 
@@ -215,6 +216,29 @@ async function addPosters({ db, shows, settings }: DbHandle) {
     } catch {}
     if (!(media.posterWide || media.posterSquare || media.posterTall))
       await db.update(shows).set({ media: JSON.stringify({ ...media, ...cuts }), updatedAt: now }).where(eq(shows.slug, file.slug));
+    await db.insert(settings).values({ key: done, value: "true", updatedAt: now }).onConflictDoNothing();
+  }
+}
+
+/** Once per show: the show reel that ships with the site becomes the show page video in a database
+ *  filled before November 2026, where the slot is empty or still holds the old bundled loop (a video
+ *  the admin set stays). A setting per show marks it as done, so a video removed later stays removed. */
+async function addReels({ db, shows, settings }: DbHandle) {
+  const keys = new Set((await db.select({ key: settings.key }).from(settings)).map((r) => r.key));
+  const bundled = new Set(["/media/shows/dracula/silk"]);
+  const now = Date.now();
+  for (const file of showsJson.shows) {
+    const done = `reel:${file.slug}`;
+    const reel = (file.media as Record<string, { video?: string } | undefined>).extra;
+    if (keys.has(done) || !reel?.video?.endsWith("/reel")) continue;
+    const [row] = await db.select({ media: shows.media }).from(shows).where(eq(shows.slug, file.slug));
+    if (!row) continue;
+    let media: Record<string, { video?: string } | undefined> = {};
+    try {
+      media = JSON.parse(row.media) as typeof media;
+    } catch {}
+    if (!media.extra || bundled.has(media.extra.video ?? ""))
+      await db.update(shows).set({ media: JSON.stringify({ ...media, extra: reel }), updatedAt: now }).where(eq(shows.slug, file.slug));
     await db.insert(settings).values({ key: done, value: "true", updatedAt: now }).onConflictDoNothing();
   }
 }

@@ -12,7 +12,7 @@ type Slot = "card" | "hero" | "extra" | "posterWide" | "posterSquare" | "posterT
 const SLOTS: { slot: Slot; label: string; size: string; aspect: string; poster?: true }[] = [
   { slot: "card", label: "Card in the shows list", size: "portrait, cropped to 720 × 900", aspect: "aspect-[4/5]" },
   { slot: "hero", label: "Header of the show page (when there is no poster)", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video" },
-  { slot: "extra", label: "Extra loop on the show page", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video" },
+  { slot: "extra", label: "Video on the show page (under the story)", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video" },
   { slot: "posterWide", label: "16:9: showcase tiles and the show page header (computers, tablets)", size: "landscape, cropped to 1280 × 720", aspect: "aspect-video", poster: true },
   { slot: "posterSquare", label: "1:1: showcase list on phones", size: "square, cropped to 720 × 720", aspect: "aspect-square", poster: true },
   { slot: "posterTall", label: "9:16: the show page header on phones", size: "portrait, cropped to 720 × 1280", aspect: "aspect-[9/16]", poster: true },
@@ -21,8 +21,9 @@ const SLOTS: { slot: Slot; label: string; size: string; aspect: string; poster?:
 /** What the site shows when a slot is empty. */
 function emptyNote(slot: Slot) {
   if (slot === "card") return "No picture: the site draws a light-and-ice card in the show's colour";
-  if (slot === "posterTall") return "No poster on the show page";
+  if (slot === "posterTall") return "Not set: the show page header on phones uses another cut";
   if (slot === "posterWide" || slot === "posterSquare") return "Not set: the showcase uses the other cut, or the card";
+  if (slot === "extra") return "No video on the show page";
   return "No picture";
 }
 
@@ -107,7 +108,7 @@ function SlotEditor({
   return (
     <div className="rounded-md border border-[#1c2738] p-3">
       <p className="text-sm text-[#c9d6e3]">{label}</p>
-      <p className={`${hint} mb-2`}>{poster ? `Image, ${size}.` : `Image or video, ${size}. Video: first 15 seconds, without sound.`}</p>
+      <p className={`${hint} mb-2`}>{poster ? `Image, ${size}.` : `Image or video, ${size}. Video: first ${slot === "extra" ? 30 : 15} seconds, without sound.`}</p>
       <div className={`relative mb-3 w-full max-w-[240px] overflow-hidden rounded bg-[#0c121b] ${aspect}`}>
         {value ? (
           <Preview media={value} className="absolute inset-0 h-full w-full object-cover" />

@@ -19,7 +19,8 @@
         "posterSquare": { "poster": "/media/shows/aladdin/poster-square" },
         "posterTall": { "poster": "/media/shows/aladdin/poster-tall" },
         "card": { "video": "/media/shows/aladdin/card", "poster": "/media/shows/aladdin/card" },
-        "hero": { "video": "/media/shows/aladdin/hero", "poster": "/media/shows/aladdin/hero" }
+        "hero": { "video": "/media/shows/aladdin/hero", "poster": "/media/shows/aladdin/hero" },
+        "extra": { "video": "/media/shows/aladdin/reel", "poster": "/media/shows/aladdin/reel" }
       },
       "track": "aladdin",
       "copyStatus": "draft"
@@ -43,7 +44,7 @@
         "posterTall": { "poster": "/media/shows/dracula/poster-tall" },
         "card": { "video": "/media/shows/dracula/card", "poster": "/media/shows/dracula/card" },
         "hero": { "video": "/media/shows/dracula/hero", "poster": "/media/shows/dracula/hero" },
-        "extra": { "video": "/media/shows/dracula/silk", "poster": "/media/shows/dracula/silk" }
+        "extra": { "video": "/media/shows/dracula/reel", "poster": "/media/shows/dracula/reel" }
       },
       "track": "dracula",
       "copyStatus": "draft"
@@ -88,7 +89,8 @@
         "posterSquare": { "poster": "/media/shows/anastasia/poster-square" },
         "posterTall": { "poster": "/media/shows/anastasia/poster-tall" },
         "card": { "video": "/media/shows/anastasia/card", "poster": "/media/shows/anastasia/card" },
-        "hero": { "video": "/media/shows/anastasia/hero", "poster": "/media/shows/anastasia/hero" }
+        "hero": { "video": "/media/shows/anastasia/hero", "poster": "/media/shows/anastasia/hero" },
+        "extra": { "video": "/media/shows/anastasia/reel", "poster": "/media/shows/anastasia/reel" }
       },
       "track": "anastasia",
       "copyStatus": "draft"

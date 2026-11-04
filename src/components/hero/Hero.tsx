@@ -188,7 +188,7 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
         </div>
 
         {/* title: the logo's lettering, one line above the skater (never over her) */}
-        <h1 data-hero-ui className="pointer-events-none absolute inset-x-0 top-[12svh] flex select-none justify-center md:top-[11.5vh]">
+        <h1 data-hero-ui className="pointer-events-none absolute inset-x-0 top-[14svh] flex select-none justify-center md:top-[11.5vh]">
           <span className="sr-only">Musical on Ice</span>
           <Wordmark className="block h-auto w-[84vw] overflow-visible text-ice drop-shadow-[0_0_22px_rgba(92,242,255,0.28)] md:w-[clamp(340px,40vw,700px)]" />
         </h1>
@@ -206,7 +206,7 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
         <p
           data-hero-ui
           data-mid
-          className="display pointer-events-none absolute inset-x-[var(--gutter)] top-[15svh] text-center text-[11vw] text-ice opacity-0 drop-shadow-[0_2px_16px_rgba(6,20,34,0.75)] md:top-[9vh] md:text-[4vw]"
+          className="display pointer-events-none absolute inset-x-[var(--gutter)] top-[15svh] text-center text-[10vw] text-ice opacity-0 drop-shadow-[0_2px_16px_rgba(6,20,34,0.75)] md:top-[9vh] md:text-[4vw]"
           aria-hidden
         >
           {t.mid}

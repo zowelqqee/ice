@@ -69,6 +69,13 @@ font service.
 - Anastasia promo: uniform, tank and throne scenes, title card (typo "TRON").
 - All end cards and title cards (they show the old corner bug and lettering).
 - Any shot where a face is large and lit, unless it is cropped to skates, hands or costume, or turned into silhouette.
+- Anastasia promo: the archival family photograph, the uniformed fog duet and most close-ups.
+
+Show reels (2026-11-04, the client asked for real video on every show page instead of the 3-second
+loops): `scripts/media/reels.sh` cuts 10-20 s at real speed from the shots that pass the list above,
+cropped clear of the corner bug, silent, under the story on the show page. Aladdin, Dracula and
+Anastasia have footage; Alice, The Little Prince and Through the Looking-Glass have none yet, so their
+pages have no video until the client sends some (the admin takes up to 30 s per show).
 
 ## D6. Language: English only, i18n-ready
 Dictionaries live in `src/i18n/` (en complete; de, fr, es, it are stubs that fall back to en).

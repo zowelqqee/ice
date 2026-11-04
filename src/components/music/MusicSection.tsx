@@ -116,7 +116,7 @@ export function MusicSection({ t, tracks, shows }: { t: Dictionary["music"]; tra
       <div className="grid gap-12 px-[var(--gutter)] lg:grid-cols-12">
         <div className="lg:col-span-6">
           <p className="eyebrow mb-6">{t.eyebrow}</p>
-          <h2 id="music-title" className="display text-[19vw] md:text-[10vw]">
+          <h2 id="music-title" className="display text-[10vw] md:text-[4.6vw]">
             {t.title}
             <br />
             <em className="text-accent">{t.titleItalic}</em>
@@ -190,7 +190,7 @@ export function MusicSection({ t, tracks, shows }: { t: Dictionary["music"]; tra
       {/* the ice orchestra */}
       <div className="mt-24 px-[var(--gutter)] md:mt-32">
         <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-end">
-          <h3 className="display text-[11vw] md:text-[4.6vw]">{t.orchestra}</h3>
+          <h3 className="display text-[10vw] md:text-[4.6vw]">{t.orchestra}</h3>
           <p className="max-w-[40ch] text-[14px] text-frost">{muted && audio.enabled ? t.soundOff : t.orchestraHint}</p>
         </div>
         <div ref={stageRef} className="relative h-[62svh] w-full overflow-hidden border border-deep md:h-[72vh]">
