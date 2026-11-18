@@ -69,7 +69,7 @@ export function TextsForm({ action, rows }: { action: (s: FormState, f: FormData
           </details>
         );
       })}
-      <p className={hint}>An emptied field goes back to the original text.</p>
+      <p className={hint}>An emptied field stays blank on the site. Use Original to restore the default text.</p>
       <div className="sticky bottom-0 -mx-4 flex gap-3 border-t border-[#1c2738] bg-[#070a10]/95 px-4 py-3 backdrop-blur">
         <button type="submit" disabled={pending} className={btnPrimary}>
           {pending ? "Saving…" : "Save texts"}
@@ -83,7 +83,7 @@ function TextRowField({ row, hidden, error, typed }: { row: TextRow; hidden: boo
   const [value, setValue] = useState(typed ?? row.current);
   const long = row.original.length > 70;
   const name = `t:${row.path}`;
-  const changed = value.trim() !== row.original && value.trim() !== "";
+  const changed = value.trim() !== row.original;
   const cls = `${field} ${error ? fieldError : ""}`;
   return (
     <div className={hidden ? "hidden" : ""}>

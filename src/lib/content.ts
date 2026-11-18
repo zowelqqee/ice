@@ -323,7 +323,7 @@ function setAt(obj: Record<string, unknown>, path: string, value: string) {
   o[keys[keys.length - 1]] = value;
 }
 
-/** Only the texts that differ from en.ts are stored; an empty field means "the original". */
+/** Only texts that differ from en.ts are stored, including intentionally empty strings. */
 export function parseTexts(form: FormData): Parsed<Record<string, unknown>> {
   const errors: Errors = {};
   const overrides: Record<string, unknown> = {};
@@ -331,7 +331,7 @@ export function parseTexts(form: FormData): Parsed<Record<string, unknown>> {
     const raw = form.get(`t:${path}`);
     if (raw === null) continue;
     const value = clean(raw).replace(/[ \t]+/g, " ");
-    if (!value || value === original) continue;
+    if (value === original) continue;
     const msg = checkText(value, { label: "This text", max: 600 });
     if (msg) errors[path] = msg;
     else setAt(overrides, path, value);
