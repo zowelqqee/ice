@@ -92,8 +92,8 @@ export function Glow({ stage }: { stage: StageUniforms }) {
  *  the frame's shape, so it is painted into a half-resolution texture at 30 frames a second (it
  *  is all soft light and haze) and shown on a plane that faces the camera and fills the frame at a
  *  fixed distance, however the camera moves and tilts. Painting it every frame at full resolution
- *  was the most expensive part of the scene. One half of the texture is painted per frame, so the
- *  cost is spread evenly instead of landing on every other frame. */
+ *  was the most expensive part of the scene. Each update paints the whole texture at the same
+ *  time: updating its halves separately leaves a visible seam across moving beams and lights. */
 const ARENA_SCALE = 0.5;
 const ARENA_STEP = 1 / 30;
 
@@ -112,7 +112,7 @@ export function Arena({ stage }: { stage: StageUniforms }) {
     quad.frustumCulled = false;
     const scene = new THREE.Scene();
     scene.add(quad);
-    return { target, material, scene, camera: new THREE.Camera(), at: [-1, -1], size: new THREE.Vector2() };
+    return { target, material, scene, camera: new THREE.Camera(), at: -1, size: new THREE.Vector2() };
   }, []);
   const mat = useMemo(
     () =>
@@ -152,22 +152,15 @@ export function Arena({ stage }: { stage: StageUniforms }) {
     const u = paint.material.uniforms;
     const t = stage.uTime.value;
     const resized = paint.target.width !== w || paint.target.height !== h || u.uAspect.value !== cam.aspect;
-    const half = paint.at[0] <= paint.at[1] ? 0 : 1; // the staler one
-    if (!resized && Math.abs(t - paint.at[half]) < ARENA_STEP * 0.9) return;
+    if (!resized && Math.abs(t - paint.at) < ARENA_STEP * 0.9) return;
     if (paint.target.width !== w || paint.target.height !== h) paint.target.setSize(w, h);
-    const mid = Math.round(h / 2);
-    paint.target.scissorTest = !resized;
-    if (resized) paint.at.fill(t);
-    else {
-      paint.target.scissor.set(0, half ? mid : 0, w, half ? h - mid : mid);
-      paint.at[half] = t;
-    }
     u.uTime.value = t;
     u.uAspect.value = cam.aspect;
     const prev = gl.getRenderTarget();
     gl.setRenderTarget(paint.target);
     gl.render(paint.scene, paint.camera);
     gl.setRenderTarget(prev);
+    paint.at = t;
   });
   return (
     <mesh ref={ref} material={mat} renderOrder={-1} frustumCulled={false}>
