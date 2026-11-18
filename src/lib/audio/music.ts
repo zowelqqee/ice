@@ -69,7 +69,6 @@ class MusicPlayer {
       el.src = `${track.src}.${webm ? "webm" : "m4a"}`;
       this.set({ track, time: 0, duration: track.duration });
     }
-    audio.setAmbientLevel(0);
     try {
       await el.play();
       this.set({ playing: true });
@@ -80,7 +79,6 @@ class MusicPlayer {
 
   pause() {
     this.el?.pause();
-    audio.setAmbientLevel(1);
     this.set({ playing: false });
   }
 

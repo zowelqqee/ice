@@ -348,7 +348,6 @@ class Orchestra {
   private stopTransport() {
     clearInterval(this.timer);
     this.set({ playing: false, beat: 0 });
-    audio.setAmbientLevel(1);
   }
 
   private tick() {
@@ -397,7 +396,6 @@ class Orchestra {
     }
     this.set({ awake: [...this.state.awake, name] });
     this.startHooks.forEach((h) => h());
-    audio.setAmbientLevel(0); // the hero drone is in another key: silence it under the orchestra
     await this.load(name);
     if (!this.state.awake.includes(name)) return; // put back to sleep while loading
     const b = this.bus(name);

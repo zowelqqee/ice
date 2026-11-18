@@ -18,12 +18,6 @@ export interface Levels {
 }
 
 const PENTA = [57, 60, 62, 64, 67, 69, 72, 74, 76, 79, 81, 84]; // A minor pentatonic, MIDI
-const CHORDS = [
-  [45, 52, 59, 60, 64], // Am(add9)
-  [41, 48, 57, 60, 64], // Fmaj7
-  [43, 50, 55, 59, 62], // G6
-  [40, 47, 55, 59, 62], // Em7
-];
 const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
 class AudioEngine {
@@ -39,13 +33,7 @@ class AudioEngine {
   private _muted = true;
   private _enabled = false;
 
-  // ambient
-  private pad: { osc: OscillatorNode[]; gain: GainNode; filter: BiquadFilterNode } | null = null;
-  private hiss: { gain: GainNode; filter: BiquadFilterNode } | null = null;
-  private chordIdx = 0;
-  private chordTimer = 0;
   private lastBell = 0;
-  private ambientLevel = 1;
 
   get enabled() {
     return this._enabled;
@@ -66,14 +54,6 @@ class AudioEngine {
   async enable() {
     if (!this.ctx) this.build();
     await this.ctx!.resume();
-    if (!this._enabled && this.pad) {
-      // the pad rises from silence when sound first comes on (the graph may have been made earlier)
-      const g = this.pad.gain.gain;
-      const now = this.ctx!.currentTime;
-      g.cancelScheduledValues(now);
-      g.setValueAtTime(0, now);
-      g.setTargetAtTime(0.11 * this.ambientLevel, now, 2.5);
-    }
     this._enabled = true;
     this.setMuted(false);
   }
@@ -144,84 +124,13 @@ class AudioEngine {
     this.bus.connect(comp);
     this.reverbSend.connect(reverb).connect(comp);
     comp.connect(this.master).connect(this.analyser).connect(ctx.destination);
-
-    this.buildAmbient();
   }
 
-  private buildAmbient() {
-    const ctx = this.ctx!;
-    // pad
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 900;
-    filter.Q.value = 0.6;
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.value = 0.07;
-    lfoGain.gain.value = 380;
-    lfo.connect(lfoGain).connect(filter.frequency);
-    lfo.start();
-
-    const gain = ctx.createGain();
-    gain.gain.value = 0;
-    gain.gain.setTargetAtTime(0.11, ctx.currentTime, 2.5);
-    const osc: OscillatorNode[] = [];
-    CHORDS[0].forEach((m, i) => {
-      for (const [type, det] of [["triangle", -6], ["sine", 7]] as const) {
-        const o = ctx.createOscillator();
-        o.type = type;
-        o.frequency.value = mtof(m);
-        o.detune.value = det + (i % 2 ? 3 : -3);
-        const g = ctx.createGain();
-        g.gain.value = type === "sine" ? 0.5 : 0.22;
-        o.connect(g).connect(filter);
-        o.start();
-        osc.push(o);
-      }
-    });
-    filter.connect(gain);
-    gain.connect(this.bus);
-    gain.connect(this.reverbSend);
-    this.pad = { osc, gain, filter };
-
-    // blade hiss: band-passed noise, loudness follows spin speed
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuffer(ctx, 3);
-    noise.loop = true;
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.frequency.value = 4200;
-    bp.Q.value = 0.9;
-    const hg = ctx.createGain();
-    hg.gain.value = 0;
-    noise.connect(bp).connect(hg);
-    hg.connect(this.bus);
-    hg.connect(this.reverbSend);
-    noise.start();
-    this.hiss = { gain: hg, filter: bp };
-  }
-
-  /** Scale the generated ambient (the music section ducks it when real stems play). */
-  setAmbientLevel(v: number) {
-    this.ambientLevel = v;
-    if (this.pad && this.ctx) this.pad.gain.gain.setTargetAtTime(0.11 * v, this.ctx.currentTime, 0.6);
-  }
-
-  /** Per-frame from the hero scene: speed in rad/s. */
-  setSpin(speed: number, dt: number) {
-    if (!this.ctx || this._muted || !this.hiss || !this.pad) return;
+  /** Per-frame from the hero scene: occasional glass bells, without background audio. */
+  setSpin(speed: number) {
+    if (!this.ctx || this._muted) return;
     const now = this.ctx.currentTime;
     const s = Math.min(1, Math.max(0, (speed - 0.9) / 12));
-    this.hiss.gain.gain.setTargetAtTime(s * s * 0.16 * this.ambientLevel, now, 0.08);
-    this.hiss.filter.frequency.setTargetAtTime(3000 + s * 5000, now, 0.1);
-
-    this.chordTimer += dt;
-    if (this.chordTimer > 9) {
-      this.chordTimer = 0;
-      this.chordIdx = (this.chordIdx + 1) % CHORDS.length;
-      const chord = CHORDS[this.chordIdx];
-      this.pad.osc.forEach((o, i) => o.frequency.setTargetAtTime(mtof(chord[i >> 1]), now, 1.4));
-    }
 
     if (s > 0.35 && now - this.lastBell > 0.32 - s * 0.18 && Math.random() < 0.5) {
       this.lastBell = now;
@@ -289,14 +198,6 @@ function newContext() {
 function idle(fn: () => void) {
   if ("requestIdleCallback" in window) requestIdleCallback(fn, { timeout: 2500 });
   else setTimeout(fn, 300);
-}
-
-function noiseBuffer(ctx: AudioContext, seconds: number) {
-  const len = Math.floor(ctx.sampleRate * seconds);
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-  return buf;
 }
 
 function impulse(ctx: AudioContext, seconds: number, decay: number) {

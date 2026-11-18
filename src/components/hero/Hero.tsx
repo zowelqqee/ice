@@ -8,7 +8,6 @@ import { impulse, spin } from "@/lib/spin";
 import { heroScroll } from "@/lib/pointer";
 import { useInView } from "@/lib/hooks/useInView";
 import type { Dictionary } from "@/i18n";
-import { audio } from "@/lib/audio/engine";
 import { jingle, JINGLE_SWEEP } from "@/lib/audio/jingle";
 import { WORDMARK_LETTERS, WORDMARK_VIEWBOX } from "./wordmark";
 import { cueCurtains, onCurtainCue } from "./morph";
@@ -58,11 +57,6 @@ export function Hero({ t, onReady }: { t: Dictionary["hero"]; onReady: () => voi
 
   // she spins to the jingle: a push on the opening sweep and on each bright chime
   useEffect(() => jingle.onAccent((t) => impulse(t === JINGLE_SWEEP ? 9 : 5)), []);
-
-  // the scene stops rendering off-screen: silence the blade hiss it was driving
-  useEffect(() => {
-    if (!visible) audio.setSpin(0, 0);
-  }, [visible]);
 
   const ready = () => {
     setLive(true);

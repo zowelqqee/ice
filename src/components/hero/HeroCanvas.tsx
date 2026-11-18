@@ -39,7 +39,7 @@ function Director({ stage, dpr }: { stage: StageUniforms; dpr: number }) {
     const pulse = Math.min(1, lv.low * 1.4 + lv.mid * 0.6);
     stage.uPulse.value += (pulse - stage.uPulse.value) * (1 - Math.exp(-dt * 10));
     stage.uRim.value = 2.2 + stage.uPulse.value * 0.9 + Math.min(spin.speed / 20, 0.5);
-    audio.setSpin(spin.speed, dt);
+    audio.setSpin(spin.speed);
 
     // camera: frame the full figure on any aspect, then sink low and close as the visitor scrolls
     const aspect = size.width / size.height;

@@ -1,7 +1,6 @@
 // The Musical on Ice jingle: the brand theme for logo moments (the Enter screen, the treble clef).
 // Played from a decoded buffer through the shared engine, so the analyser hears it (the hero's rim
-// light pulses with it); the generated ambient is ducked while it plays. Starting a show track or
-// the ice orchestra stops it, and it stops them.
+// light pulses with it). Starting a show track or the ice orchestra stops it, and it stops them.
 
 import { audio } from "./engine";
 import { orchestra } from "./orchestra";
@@ -95,7 +94,6 @@ class Jingle {
     this.source = src;
     this.gain = gain;
     this.playing = true;
-    audio.setAmbientLevel(0);
     this.timers = JINGLE_ACCENTS.map((t) => window.setTimeout(() => this.accentListeners.forEach((l) => l(t)), t * 1000));
     this.emit();
     return true;
@@ -125,7 +123,6 @@ class Jingle {
     this.timers.forEach(clearTimeout);
     this.timers = [];
     this.playing = false;
-    if (!player.getState().playing) audio.setAmbientLevel(1);
     this.emit();
   }
 }
